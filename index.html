@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jaray’s HR Sim</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#0f1622; --panel2:#111a27; --border:#24324a;
+      --text:#e9eef6; --muted:rgba(233,238,246,.72);
+      --good:#7dff7d; --bad:#ff4b4b; --warn:#ffd36a; --blue:#3aa0ff;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .wrap{max-width:1050px;margin:0 auto;padding:14px 14px 40px}
+    h1{font-size:20px;margin:8px 0 10px}
+    h2{font-size:15px;margin:0 0 8px;color:var(--muted);font-weight:600}
+    .row{display:grid;grid-template-columns: 360px 1fr; gap:12px; align-items:start}
+    @media (max-width: 940px){ .row{grid-template-columns:1fr} }
+    .card{background:linear-gradient(180deg,var(--panel) 0%, #0d131d 100%); border:1px solid var(--border); border-radius:14px; padding:12px}
+    .card2{background:var(--panel2); border:1px solid var(--border); border-radius:14px; padding:12px}
+    .pill{display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,0.03); font-size:12px; color:var(--muted)}
+    .grid{display:grid; gap:10px}
+    .kpis{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .bar{height:12px;background:#0b1220;border:1px solid var(--border); border-radius:999px; overflow:hidden}
+    .fill{height:100%; width:50%}
+    .kv{display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--muted)}
+    .btnrow{display:flex; flex-wrap:wrap; gap:8px}
+    button{
+      appearance:none; border:1px solid var(--border); background:rgba(255,255,255,0.04);
+      color:var(--text); padding:9px 10px; border-radius:10px; font-weight:650; cursor:pointer;
+    }
+    button:hover{background:rgba(255,255,255,0.07)}
+    button:disabled{opacity:.45; cursor:not-allowed}
+    .danger{border-color: rgba(255,75,75,.55); background:rgba(255,75,75,.08)}
+    .good{border-color: rgba(125,255,125,.45); background:rgba(125,255,125,.08)}
+    .muted{opacity:.7}
+    input, select{
+      width:100%; box-sizing:border-box; padding:9px 10px; border-radius:10px;
+      border:1px solid var(--border); background:#0b1220; color:var(--text);
+    }
+    label{font-size:12px; color:var(--muted)}
+    .form{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    @media (max-width: 520px){ .form{grid-template-columns:1fr} }
+    .avatar{
+      display:flex; gap:10px; align-items:center;
+      border:1px solid var(--border); background:rgba(255,255,255,0.03);
+      border-radius:14px; padding:10px;
+    }
+    .head{
+      width:54px;height:54px;border-radius:16px; position:relative; flex:0 0 auto;
+      border:1px solid rgba(255,255,255,0.12); overflow:hidden;
+      background: radial-gradient(70px 60px at 30% 30%, rgba(255,255,255,.18), rgba(255,255,255,0) 55%),
+                  var(--skin, #d7a98b);
+    }
+    .hair{
+      position:absolute; left:-5px; top:-10px; width:70px; height:46px;
+      background: var(--hair, #2b2b2b); opacity:.95;
+      transform: rotate(-2deg);
+      border-bottom-left-radius: 24px;
+      border-bottom-right-radius: 30px;
+      border-top-left-radius: 22px;
+      border-top-right-radius: 22px;
+      filter: drop-shadow(0 6px 8px rgba(0,0,0,.35));
+    }
+    .hairstyle-bun::after{
+      content:""; position:absolute; right:8px; top:-2px; width:18px; height:18px; border-radius:999px;
+      background:var(--hair, #2b2b2b);
+      box-shadow: 0 2px 0 rgba(0,0,0,.25);
+    }
+    .hairstyle-ponytail::after{
+      content:""; position:absolute; right:6px; top:18px; width:18px; height:26px; border-radius:12px;
+      background:var(--hair, #2b2b2b);
+      transform: rotate(12deg);
+      box-shadow: 0 2px 0 rgba(0,0,0,.25);
+    }
+    .hairstyle-fade{ height:34px; top:-6px; opacity:.92; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+    .hairstyle-long{ height:52px; top:-12px; border-bottom-left-radius: 26px; border-bottom-right-radius: 26px; }
+    .small{font-size:12px;color:var(--muted);line-height:1.35}
+    .caseTitle{font-size:16px; font-weight:800; margin:0 0 8px}
+    .caseBody{white-space:pre-wrap; line-height:1.45; color:rgba(233,238,246,.88)}
+    .divider{height:1px;background:rgba(255,255,255,0.06);margin:10px 0}
+    .tag{display:inline-flex; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); font-size:11px; background:rgba(255,255,255,.03)}
+    .tags{display:flex; gap:6px; flex-wrap:wrap}
+    .toast{font-size:12px;color:var(--muted)}
+    .log{
+      max-height:320px; overflow:auto; padding-right:6px;
+      font-size:12px; color:rgba(233,238,246,.78); line-height:1.35
+    }
+    .log .entry{border-bottom:1px dashed rgba(255,255,255,0.08); padding:8px 0}
+    .log .entry:last-child{border-bottom:none}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Jaray’s HR Sim</h1>
+
+    <div id="setupView" class="row" style="display:none">
+      <div class="card">
+        <h2>Create your HR Specialist</h2>
+        <div class="grid">
+          <div>
+            <label>Name</label>
+            <input id="name" placeholder="e.g., Jaray" maxlength="22" />
+          </div>
+
+          <div class="form">
+            <div>
+              <label>Gender/Pronouns</label>
+              <select id="pronouns">
+                <option value="he/him">He/Him</option>
+                <option value="she/her">She/Her</option>
+                <option value="they/them">They/Them</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+            <div id="customPronounsWrap" style="display:none">
+              <label>Custom pronouns</label>
+              <input id="customPronouns" placeholder="e.g., ze/zir" maxlength="18"/>
+            </div>
+          </div>
+
+          <div class="form">
+            <div>
+              <label>Skin tone</label>
+              <select id="skin">
+                <option value="#f3d6c6">Light</option>
+                <option value="#e3b79a">Warm</option>
+                <option value="#d7a98b" selected>Tan</option>
+                <option value="#b87b59">Brown</option>
+                <option value="#8a5a3d">Deep</option>
+              </select>
+            </div>
+            <div>
+              <label>Hair color</label>
+              <select id="hairColor">
+                <option value="#1f1f1f" selected>Black</option>
+                <option value="#5a3a2a">Brown</option>
+                <option value="#caa24a">Blonde</option>
+                <option value="#a83b2f">Auburn</option>
+                <option value="#6a7cff">Blue</option>
+                <option value="#ff5aa8">Pink</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label>Hair style</label>
+            <select id="hairStyle">
+              <option value="short">Short</option>
+              <option value="fade">Fade</option>
+              <option value="long" selected>Long</option>
+              <option value="bun">Bun</option>
+              <option value="ponytail">Ponytail</option>
+            </select>
+          </div>
+
+          <div class="avatar" id="avatarPreview">
+            <div class="head" id="head">
+              <div class="hair" id="hair"></div>
+            </div>
+            <div class="grid" style="gap:4px">
+              <div style="font-weight:800" id="previewName">HR Specialist</div>
+              <div class="small" id="previewMeta">Pronouns: they/them</div>
+              <div class="small muted">Simple profile icon — the “anime” vibe is UI + writing, not portraits.</div>
+            </div>
+          </div>
+
+          <div class="btnrow">
+            <button class="good" id="startBtn">Start Simulator</button>
+            <button id="wipeBtn" class="danger">Reset All Data</button>
+          </div>
+
+          <div class="toast" id="setupToast"></div>
+        </div>
+      </div>
+
+      <div class="card2">
+        <h2>What this is</h2>
+        <div class="small">
+          Endless loop of realistic hospital HR scenarios. Choose actions, request more information,
+          and face consequences across KPIs and skills.
+          <div class="divider"></div>
+          <b>Tip:</b> Use “More Info” before big moves. It costs time, but prevents dumb outcomes.
+          <div class="divider"></div>
+          <span class="tag">Text-based</span>
+          <span class="tag">Point & click</span>
+          <span class="tag">Replayable cases</span>
+          <span class="tag">Consequences</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="gameView" class="row" style="display:none">
+      <div class="grid">
+        <div class="card">
+          <h2>Your Profile</h2>
+          <div class="avatar">
+            <div class="head" id="pHead"><div class="hair" id="pHair"></div></div>
+            <div class="grid" style="gap:4px; width:100%">
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:center">
+                <div style="font-weight:900; font-size:16px" id="pName">—</div>
+                <span class="pill"><span class="mono" id="dayCount">Day 1</span></span>
+              </div>
+              <div class="small" id="pMeta">—</div>
+              <div class="small muted">Hospital HR • Decisions shape culture, risk, and retention.</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h2>Dashboard</h2>
+          <div class="kpis">
+            <div class="grid" style="gap:6px">
+              <div class="kv"><span>Morale</span><span class="mono" id="kMorale">50</span></div>
+              <div class="bar"><div class="fill" id="bMorale" style="background:var(--good)"></div></div>
+            </div>
+            <div class="grid" style="gap:6px">
+              <div class="kv"><span>Compliance Risk</span><span class="mono" id="kRisk">50</span></div>
+              <div class="bar"><div class="fill" id="bRisk" style="background:var(--warn)"></div></div>
+            </div>
+            <div class="grid" style="gap:6px">
+              <div class="kv"><span>Turnover Risk</span><span class="mono" id="kTurnover">50</span></div>
+              <div class="bar"><div class="fill" id="bTurnover" style="background:var(--warn)"></div></div>
+            </div>
+            <div class="grid" style="gap:6px">
+              <div class="kv"><span>Efficiency</span><span class="mono" id="kEff">50</span></div>
+              <div class="bar"><div class="fill" id="bEff" style="background:var(--blue)"></div></div>
+            </div>
+            <div class="grid" style="gap:6px">
+              <div class="kv"><span>Your Reputation</span><span class="mono" id="kRep">50</span></div>
+              <div class="bar"><div class="fill" id="bRep" style="background:#b18bff"></div></div>
+            </div>
+            <div class="grid" style="gap:6px">
+              <div class="kv"><span>Time (Today)</span><span class="mono" id="kTime">3</span></div>
+              <div class="bar"><div class="fill" id="bTime" style="background:rgba(233,238,246,.55)"></div></div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h2>Skills</h2>
+          <div class="grid" style="gap:8px">
+            <div class="kv"><span>Empathy</span><span class="mono" id="sEmp">1</span></div>
+            <div class="kv"><span>Investigation</span><span class="mono" id="sInv">1</span></div>
+            <div class="kv"><span>Policy</span><span class="mono" id="sPol">1</span></div>
+            <div class="kv"><span>Influence</span><span class="mono" id="sInf">1</span></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="btnrow">
+            <button id="newCaseBtn" class="good">Get Next Case</button>
+            <button id="endDayBtn">End Day</button>
+            <button id="viewHistoryBtn">Case History</button>
+            <button id="editProfileBtn">Edit Profile</button>
+            <button id="resetBtn" class="danger">Reset Simulator</button>
+          </div>
+
+          <div class="toast" id="gameToast"></div>
+        </div>
+
+        <div class="card2" id="historyCard" style="display:none">
+          <h2>Recent Case Log</h2>
+          <div class="small muted">Your last 20 cases (most recent first).</div>
+          <div class="divider"></div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+
+      <div class="card" id="caseCard">
+        <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start">
+          <div>
+            <div class="caseTitle" id="caseTitle">Press “Get Next Case”</div>
+            <div class="tags" id="caseTags"></div>
+          </div>
+          <span class="pill">Severity <span class="mono" id="caseSev">—</span>/5</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="caseBody" id="caseBody">
+Choose a case to begin. Your goal is to keep Morale high while lowering Compliance/Turnover risk and keeping operations moving.
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="btnrow" id="infoBtns">
+          <button id="moreInfoBtn" disabled>More Info (costs 1 time)</button>
+          <button id="docBtn" disabled>Request Documentation (costs 1 time)</button>
+          <button id="witnessBtn" disabled>Interview Witness (costs 1 time)</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <h2>Choose your action</h2>
+        <div class="btnrow" id="choiceBtns"></div>
+
+        <div class="divider"></div>
+        <div class="small" id="outcomeText"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const rnd = (a,b)=>Math.floor(a+Math.random()*(b-a+1));
+  const pick = (arr)=>arr[Math.floor(Math.random()*arr.length)];
+  const weightedPick = (items) => {
+    const total = items.reduce((s,it)=>s+it.w,0);
+    let r = Math.random()*total;
+    for (const it of items){ r -= it.w; if (r<=0) return it.v; }
+    return items[items.length-1].v;
+  };
+
+  const STORAGE_KEY = "jaray_hr_sim_v1";
+  const MAX_TIME = 3; // Patch A: single source of truth
+
+  const defaultState = () => ({
+    player: null,
+    day: 1,
+    timeLeft: MAX_TIME,
+    skills: { empathy:1, investigation:1, policy:1, influence:1 },
+    kpis: { morale:50, complianceRisk:50, turnoverRisk:50, efficiency:50, reputation:50 },
+    history: [],
+    lastOutcomeHtml: "", // Patch B: persist last outcome across renders
+    activeCase: null,
+    activeCaseStage: 0,
+    caseKnowledge: { moreInfo:false, docs:false, witness:false }
+  });
+
+  let state = load() || defaultState();
+
+  // ---------- Character Creation ----------
+  function updateAvatarPreview() {
+    const name = ($("name").value || "HR Specialist").trim();
+    const pronSel = $("pronouns").value;
+    const pron = pronSel === "custom" ? ($("customPronouns").value || "they/them") : pronSel;
+
+    const skin = $("skin").value;
+    const hairColor = $("hairColor").value;
+    const hairStyle = $("hairStyle").value;
+
+    $("previewName").textContent = name;
+    $("previewMeta").textContent = `Pronouns: ${pron}`;
+
+    const head = $("head");
+    const hair = $("hair");
+    head.style.setProperty("--skin", skin);
+    hair.style.setProperty("--hair", hairColor);
+
+    hair.className = "hair";
+    hair.classList.add("hairstyle-" + hairStyle);
+  }
+
+  function bindSetupUI() {
+    $("pronouns").addEventListener("change", () => {
+      $("customPronounsWrap").style.display = $("pronouns").value === "custom" ? "block" : "none";
+      updateAvatarPreview();
+    });
+
+    ["name","customPronouns","skin","hairColor","hairStyle"].forEach(id=>{
+      $(id).addEventListener("input", updateAvatarPreview);
+      $(id).addEventListener("change", updateAvatarPreview);
+    });
+
+    $("startBtn").addEventListener("click", () => {
+      const name = ($("name").value || "").trim();
+      if (!name){
+        $("setupToast").textContent = "Give your HR specialist a name first.";
+        return;
+      }
+
+      const pronSel = $("pronouns").value;
+      const pronouns = pronSel === "custom" ? ($("customPronouns").value || "they/them") : pronSel;
+
+      state.player = {
+        name,
+        pronouns,
+        skin: $("skin").value,
+        hairColor: $("hairColor").value,
+        hairStyle: $("hairStyle").value,
+      };
+
+      save();
+      showGame();
+      toast("Simulator ready. Get your first case.");
+    });
+
+    $("wipeBtn").addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      state = defaultState();
+      showSetup();
+      $("setupToast").textContent = "All data reset.";
+    });
+
+    updateAvatarPreview();
+  }
+
+  // ---------- Scenario Engine ----------
+  const names = {
+    first: ["Avery","Jordan","Riley","Sam","Taylor","Morgan","Casey","Drew","Cameron","Quinn","Noah","Mia","Elena","Marcus","DeShawn","Priya","Hannah","Luis","Sofia","Ethan"],
+    last: ["Nguyen","Patel","Gonzales","Johnson","Reed","Carter","Kim","Ramirez","Brooks","Hughes","Flores","Hernandez","Allen","Price","Washington","Baker","Stewart","Diaz","Lee","Collins"]
+  };
+  const roles = [
+    {v:"RN", w:22},{v:"LVN", w:12},{v:"CNA", w:10},{v:"MHT", w:12},{v:"Charge Nurse", w:8},
+    {v:"Unit Manager", w:7},{v:"Physician", w:5},{v:"EVS", w:6},{v:"Security", w:6},{v:"Admin Coordinator", w:12}
+  ];
+  const units = ["Behavioral Health","ER","ICU","Med-Surg","Telemetry","Admin","OR","Radiology","Pharmacy","Admissions"];
+
+  function genPerson() {
+    const first = pick(names.first), last = pick(names.last);
+    const role = weightedPick(roles);
+    const unit = pick(units);
+    const shift = pick(["Days","Nights"]);
+    const tenure = pick(["New hire (0-3 months)","1-2 years","3-5 years","6+ years"]);
+    const traits = { agree:rnd(1,5), consc:rnd(1,5), neuro:rnd(1,5), assert:rnd(1,5), empathy:rnd(1,5) };
+    return { first, last, role, unit, shift, tenure, traits };
+  }
+
+  const templates = [
+    function caseConductComment(){
+      const accused = genPerson();
+      const reporter = genPerson();
+      const sev = rnd(1,3);
+      const tags = ["Conduct","Interpersonal","Documentation"];
+      const base = `A report came in from ${reporter.first} ${reporter.last} (${reporter.role}, ${reporter.unit}, ${reporter.shift}).\n\n` +
+        `${reporter.first} states that ${accused.first} ${accused.last} (${accused.role}) made a disrespectful comment during a busy moment on the unit. ` +
+        `It was not directly profane, but it was humiliating.\n\n` +
+        `The unit is currently under stress (call-outs and high acuity).`;
+
+      const moreInfo = `More Info:\n- The comment happened in front of 2 coworkers.\n- ${accused.first} has no formal discipline on file.\n- ${reporter.first} says they’re “not trying to get anyone fired,” but wants it addressed.\n- Manager is known to avoid paperwork.`;
+
+      const docs = `Documentation:\n- No email trail; only a verbal report.\n- Time and location are consistent with the staffing sheet.\n- No camera coverage in that hallway.\n`;
+
+      const witness = `Witness Interview:\n- Witness A confirms the tone was harsh, but says it looked like a stress reaction.\n- Witness B says ${accused.first} later apologized quietly.\n`;
+
+      const choices = [
+        {
+          label: "Informal coaching + expectations + document a memo-to-file",
+          req: { policy:1 },
+          outcome: () => ({
+            text: `You coach ${accused.first} on professionalism, set expectations, and document a memo-to-file.\n` +
+                  `You also check in with ${reporter.first} and discourage retaliation/rumors.`,
+            delta: { morale:+4, complianceRisk:-3, turnoverRisk:-1, efficiency:+1, reputation:+2 },
+            xp: { policy:+1, empathy:+1 }
+          })
+        },
+        {
+          label: "Open a formal investigation immediately",
+          req: { investigation:2 },
+          outcome: () => ({
+            text: `You initiate a formal process. Staff takes it seriously, but some interpret it as “HR escalating everything.”`,
+            delta: { morale:-2, complianceRisk:-6, turnoverRisk:+1, efficiency:-2, reputation:+1 },
+            xp: { investigation:+1, policy:+1 }
+          })
+        },
+        {
+          label: "Defer to manager to “handle it” with no HR documentation",
+          req: {},
+          outcome: () => ({
+            text: `You defer to the manager. Short-term it’s fast — but you create a documentation gap if the behavior repeats.`,
+            delta: { morale:-3, complianceRisk:+6, turnoverRisk:+2, efficiency:+2, reputation:-3 },
+            xp: { influence:+0 }
+          })
+        },
+        {
+          label: "Mediation meeting with both parties (structured)",
+          req: { empathy:2 },
+          outcome: () => ({
+            text: `You run a structured mediation. It reduces tension if both cooperate, but requires careful boundaries.`,
+            delta: { morale:+5, complianceRisk:-1, turnoverRisk:-2, efficiency:-1, reputation:+2 },
+            xp: { empathy:+2 }
+          })
+        }
+      ];
+
+      return makeCase("Unprofessional Comment on Unit", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    function caseSchedulingAccommodation(){
+      const emp = genPerson();
+      const manager = genPerson();
+      const sev = rnd(2,4);
+      const tags = ["Scheduling","Accommodation","Policy"];
+      const base = `${emp.first} ${emp.last} (${emp.role}, ${emp.unit}) requests a schedule change.\n\n` +
+        `${emp.first} says they have a recurring medical appointment and asks for a consistent day off. ` +
+        `${manager.first} (${manager.role}) says the unit can’t support “special schedules” and hints the employee is being “difficult.”\n\n` +
+        `You have to decide how to proceed without making promises you can’t keep.`;
+
+      const moreInfo = `More Info:\n- ${emp.first} has strong attendance historically.\n- The request is specific: every other Thursday.\n- The unit is understaffed on Thursdays.\n- ${manager.first} has made dismissive comments about accommodations before.`;
+
+      const docs = `Documentation:\n- Employee provides appointment confirmations.\n- No formal ADA paperwork exists yet.\n- Staffing grid shows Thursdays are a pinch point.`;
+
+      const witness = `Witness Interview:\n- Another staff member says the manager publicly mocked “special schedules.”\n- A charge nurse suggests a swap rotation could work if planned ahead.`;
+
+      const choices = [
+        {
+          label: "Begin interactive process; explore options (swap rotation / partial approval) and document",
+          req: { policy:2 },
+          outcome: () => ({
+            text: `You start the interactive process, gather info, and work options that balance care delivery and fairness.\n` +
+                  `You document the steps and set a follow-up deadline.`,
+            delta: { morale:+4, complianceRisk:-6, turnoverRisk:-2, efficiency:-2, reputation:+3 },
+            xp: { policy:+2, empathy:+1 }
+          })
+        },
+        {
+          label: "Deny the request outright due to staffing needs",
+          req: {},
+          outcome: () => ({
+            text: `You deny it. It may be operationally simpler, but you increase risk and push a valuable employee toward quitting.`,
+            delta: { morale:-6, complianceRisk:+7, turnoverRisk:+6, efficiency:+2, reputation:-4 },
+            xp: { policy:+0 }
+          })
+        },
+        {
+          label: "Temporarily approve verbally without documentation",
+          req: {},
+          outcome: () => ({
+            text: `You say yes informally. People feel supported — until someone calls it favoritism and you have nothing documented.`,
+            delta: { morale:+2, complianceRisk:+5, turnoverRisk:-1, efficiency:+1, reputation:-1 },
+            xp: { empathy:+1 }
+          })
+        },
+        {
+          label: "Coach manager on accommodation language; partner with scheduling to implement a pilot",
+          req: { influence:2 },
+          outcome: () => ({
+            text: `You address the manager’s approach and implement a short pilot schedule with review points.`,
+            delta: { morale:+3, complianceRisk:-4, turnoverRisk:-2, efficiency:-1, reputation:+4 },
+            xp: { influence:+2, policy:+1 }
+          })
+        },
+      ];
+
+      return makeCase("Scheduling Accommodation Request", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    function caseRetaliationRumor(){
+      const reporter = genPerson();
+      const accusedMgr = genPerson();
+      const sev = rnd(3,5);
+      const tags = ["Retaliation","Investigation","High Stakes"];
+      const base = `${reporter.first} ${reporter.last} (${reporter.role}, ${reporter.unit}) says they’re being retaliated against after reporting a safety concern.\n\n` +
+        `They claim their supervisor, ${accusedMgr.first} ${accusedMgr.last} (${accusedMgr.role}), cut their preferred shifts and is “making examples.”\n\n` +
+        `The reporter wants protection and confidentiality.`;
+
+      const moreInfo = `More Info:\n- The safety concern was documented 10 days ago.\n- Schedule changes occurred 6 days ago.\n- Two other employees have noticed the manager’s attitude shift.\n- Reporter’s performance is average; no obvious performance reason for the schedule cut.`;
+
+      const docs = `Documentation:\n- Staffing schedules show changes.\n- Email exists where manager writes “we need people who are team players.”\n- No formal discipline on reporter.`;
+
+      const witness = `Witness Interview:\n- A coworker confirms the manager said, “Snitches make things harder for everyone.”\n- Another witness says the manager is strict but not always targeted.`;
+
+      const choices = [
+        {
+          label: "Open formal retaliation investigation; stabilize schedule pending review",
+          req: { investigation:2 },
+          outcome: () => ({
+            text: `You initiate a formal retaliation investigation and implement interim protections (schedule stabilization, no-contact guidance).`,
+            delta: { morale:+2, complianceRisk:-10, turnoverRisk:-3, efficiency:-3, reputation:+4 },
+            xp: { investigation:+2, policy:+1, influence:+1 }
+          })
+        },
+        {
+          label: "Treat it as a “communication issue” and advise the reporter to talk to the manager",
+          req: {},
+          outcome: () => ({
+            text: `You under-react. If retaliation is real, you expose the reporter and the org to major risk.`,
+            delta: { morale:-6, complianceRisk:+12, turnoverRisk:+6, efficiency:+1, reputation:-6 },
+            xp: { empathy:+0 }
+          })
+        },
+        {
+          label: "Meet manager privately; require written rationale for schedule changes; monitor",
+          req: { policy:2 },
+          outcome: () => ({
+            text: `You demand written rationale and increase oversight. It may reduce risk, but could be insufficient if retaliation is severe.`,
+            delta: { morale:+1, complianceRisk:-6, turnoverRisk:-1, efficiency:-1, reputation:+2 },
+            xp: { policy:+2, influence:+1 }
+          })
+        },
+        {
+          label: "Escalate to executive sponsor / legal consult channel",
+          req: { influence:3 },
+          outcome: () => ({
+            text: `You escalate appropriately for a high-stakes case, ensuring consistency and protection.`,
+            delta: { morale:+1, complianceRisk:-8, turnoverRisk:-2, efficiency:-2, reputation:+3 },
+            xp: { influence:+2, investigation:+1 }
+          })
+        }
+      ];
+
+      return makeCase("Retaliation Allegation After Safety Report", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    function caseHiringDecision(){
+      const c1 = {name: `${pick(names.first)} ${pick(names.last)}`};
+      const c2 = {name: `${pick(names.first)} ${pick(names.last)}`};
+      const c3 = {name: `${pick(names.first)} ${pick(names.last)}`};
+      const sev = rnd(1,3);
+      const tags = ["Hiring","Selection","Operations"];
+      const base = `You have 1 open position to fill.\n\nCandidates:\n` +
+        `1) ${c1.name} — very polished interview, strong answers, talks like a leader.\n` +
+        `2) ${c2.name} — calm, honest, good references, but gaps in employment.\n` +
+        `3) ${c3.name} — extremely personable, great rapport, but overshares.\n\n` +
+        `Unit leadership pressures you to “fill fast.”`;
+
+      const moreInfo = `More Info:\n- Candidate 1: references are strong, but one hints they “clashed with feedback.”\n- Candidate 2: attendance issue was linked to childcare and improved recently.\n- Candidate 3: great team vibe, but one prior workplace noted “too friendly with boundaries.”`;
+
+      const docs = `Documentation:\n- Background checks pending.\n- Candidate 2 has the clearest verified job history.\n- Candidate 1 has the strongest performance references.\n- Candidate 3 has the best peer feedback but also the most boundary comments.`;
+
+      const witness = `Panel Notes:\n- Manager loved Candidate 1.\n- Charge nurse preferred Candidate 2 for reliability.\n- Peer panel felt Candidate 3 could “win the unit,” but worried about professionalism.`;
+
+      const choices = [
+        {
+          label: `Hire ${c2.name} (steady / reliability-first)`,
+          req: {},
+          outcome: () => ({
+            text: `You hire ${c2.name}. The unit stabilizes, morale improves. Efficiency ramps slower, but retention risk improves.`,
+            delta: { morale:+3, complianceRisk:-1, turnoverRisk:-3, efficiency:+1, reputation:+2 },
+            xp: { policy:+1, empathy:+1 }
+          })
+        },
+        {
+          label: `Hire ${c1.name} (performance-first)`,
+          req: { influence:2 },
+          outcome: () => ({
+            text: `You hire ${c1.name}. Efficiency improves, but the risk is culture friction if coaching isn’t strong.`,
+            delta: { morale:-1, complianceRisk:+1, turnoverRisk:+1, efficiency:+4, reputation:+2 },
+            xp: { influence:+1, investigation:+1 }
+          })
+        },
+        {
+          label: `Hire ${c3.name} (culture-first)`,
+          req: { empathy:2 },
+          outcome: () => ({
+            text: `You hire ${c3.name}. The unit feels supported, but you’ll need clear boundaries training.`,
+            delta: { morale:+4, complianceRisk:+2, turnoverRisk:-1, efficiency:+1, reputation:+1 },
+            xp: { empathy:+2, policy:+1 }
+          })
+        },
+        {
+          label: "Delay decision; request additional reference checks (takes time but reduces risk)",
+          req: { investigation:2 },
+          outcome: () => ({
+            text: `You slow down to verify. It frustrates leadership, but reduces long-term risk.`,
+            delta: { morale:+0, complianceRisk:-3, turnoverRisk:-1, efficiency:-2, reputation:-1 },
+            xp: { investigation:+2, policy:+1 }
+          })
+        }
+      ];
+      return makeCase("Hiring Decision Under Pressure", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    function caseEfficiencyCornerCut(){
+      const emp = genPerson();
+      const sev = rnd(2,5);
+      const tags = ["Efficiency","Safety","Policy"];
+      const base = `A workflow problem is causing delays in ${pick(units)}.\n\n` +
+        `${emp.first} ${emp.last} (${emp.role}) admits they sometimes skip a required step “to keep things moving.”\n\n` +
+        `Leadership wants faster throughput. Staff says the process is impossible under current staffing.`;
+
+      const moreInfo = `More Info:\n- The skipped step exists for safety/compliance reasons.\n- Staff are exhausted and report “punishment for being slow.”\n- Two near-misses were informally discussed but never reported.`;
+
+      const docs = `Documentation:\n- Policy clearly requires the step.\n- Recent audits show growing noncompliance.\n- No formal reports filed — which is itself a culture red flag.`;
+
+      const witness = `Witness Interview:\n- One coworker says, “Everyone does it, we just don’t say it out loud.”\n- Another says the process can be followed if you reassign one task during peak hours.`;
+
+      const choices = [
+        {
+          label: "Enforce policy immediately + coaching + document; recommend staffing/workflow fix",
+          req: { policy:2 },
+          outcome: () => ({
+            text: `You enforce the rule and document. You also propose a workflow tweak to make compliance achievable.`,
+            delta: { morale:-1, complianceRisk:-8, turnoverRisk:+1, efficiency:-1, reputation:+2 },
+            xp: { policy:+2, influence:+1 }
+          })
+        },
+        {
+          label: "Ignore it to keep throughput high",
+          req: {},
+          outcome: () => ({
+            text: `Short-term efficiency rises. Long-term you’re gambling with audits and safety events.`,
+            delta: { morale:-2, complianceRisk:+10, turnoverRisk:+2, efficiency:+4, reputation:-4 },
+            xp: { influence:+0 }
+          })
+        },
+        {
+          label: "Run a rapid improvement pilot: adjust staffing during peak times + retrain",
+          req: { influence:2 },
+          outcome: () => ({
+            text: `You treat it as a systems problem and run a pilot. Staff buy-in improves and compliance rises.`,
+            delta: { morale:+3, complianceRisk:-6, turnoverRisk:-2, efficiency:+2, reputation:+3 },
+            xp: { influence:+2, policy:+1 }
+          })
+        },
+        {
+          label: "Escalate to safety committee; require incident reporting for near-misses",
+          req: { investigation:2 },
+          outcome: () => ({
+            text: `You establish reporting expectations and move it into the formal safety channel.`,
+            delta: { morale:+1, complianceRisk:-7, turnoverRisk:-1, efficiency:-2, reputation:+2 },
+            xp: { investigation:+2, policy:+1 }
+          })
+        }
+      ];
+      return makeCase("Cutting Corners to Improve Throughput", base, sev, tags, {moreInfo, docs, witness}, choices);
+    }
+  ];
+
+  function makeCase(title, baseText, severity, tags, info, choices){
+    return { id: Math.random().toString(36).slice(2), title, baseText, severity, tags, info, choices, resolved:false };
+  }
+
+  function nextCase(){
+    const risk = state.kpis.complianceRisk;
+    const wHigh = clamp((risk - 50) / 30, 0, 1);
+    const pickTemplate = weightedPick([
+      {v: templates[0], w: 22},
+      {v: templates[1], w: 18},
+      {v: templates[2], w: 14 + wHigh*10},
+      {v: templates[3], w: 16},
+      {v: templates[4], w: 18 + wHigh*6},
+    ]);
+    state.activeCase = pickTemplate();
+    state.activeCaseStage = 0;
+    state.caseKnowledge = { moreInfo:false, docs:false, witness:false };
+    save();
+  }
+
+  function canSpendTime(){ return state.timeLeft > 0; }
+  function spendTime(n=1){ state.timeLeft = clamp(state.timeLeft - n, 0, 99); }
+
+  function applyDelta(delta){
+    const k = state.kpis;
+    if (delta.morale) k.morale = clamp(k.morale + delta.morale, 0, 100);
+    if (delta.complianceRisk) k.complianceRisk = clamp(k.complianceRisk + delta.complianceRisk, 0, 100);
+    if (delta.turnoverRisk) k.turnoverRisk = clamp(k.turnoverRisk + delta.turnoverRisk, 0, 100);
+    if (delta.efficiency) k.efficiency = clamp(k.efficiency + delta.efficiency, 0, 100);
+    if (delta.reputation) k.reputation = clamp(k.reputation + delta.reputation, 0, 100);
+  }
+
+  function gainXP(xp){
+    if (!state._xp) state._xp = { empathy:0, investigation:0, policy:0, influence:0 };
+    for (const key of Object.keys(xp)){
+      const amt = xp[key] || 0;
+      state._xp[key] += amt;
+      while (state._xp[key] >= 3){
+        state._xp[key] -= 3;
+        state.skills[key] = clamp(state.skills[key] + 1, 1, 10);
+      }
+    }
+  }
+
+  function resolveChoice(choice){
+    const c = state.activeCase;
+    if (!c) return;
+
+    const knowledgeBonus =
+      (state.caseKnowledge.moreInfo?1:0) +
+      (state.caseKnowledge.docs?1:0) +
+      (state.caseKnowledge.witness?1:0);
+
+    let out = choice.outcome({ knowledgeBonus, skills: state.skills, kpis: state.kpis });
+
+    if (knowledgeBonus >= 2){
+      out = structuredClone(out);
+      out.delta = structuredClone(out.delta);
+      out.delta.complianceRisk = (out.delta.complianceRisk || 0) - 1;
+      out.delta.reputation = (out.delta.reputation || 0) + 1;
+      out.text += `\n\nBecause you gathered solid information first, your documentation is cleaner and leadership pushback is lower.`;
+    } else if (knowledgeBonus === 0 && c.severity >= 4){
+      out = structuredClone(out);
+      out.delta = structuredClone(out.delta);
+      out.delta.complianceRisk = (out.delta.complianceRisk || 0) + 2;
+      out.delta.reputation = (out.delta.reputation || 0) - 1;
+      out.text += `\n\nYou acted with limited facts on a high-stakes case. Even if your intent is good, that increases risk.`;
+    }
+
+    applyDelta(out.delta || {});
+    gainXP(out.xp || {});
+
+    state.history.unshift({
+      ts: Date.now(),
+      day: state.day,
+      title: c.title,
+      severity: c.severity,
+      tags: c.tags,
+      choice: choice.label,
+      delta: out.delta || {},
+      knowledge: structuredClone(state.caseKnowledge)
+    });
+    state.history = state.history.slice(0, 20);
+
+    state.activeCase.resolved = true;
+
+    const outcomeHtml = `<b>Outcome:</b> ${escapeHtml(out.text).replaceAll("\n","<br>")}`;
+    $("outcomeText").innerHTML = outcomeHtml;
+    state.lastOutcomeHtml = outcomeHtml;
+
+    save();
+    toast("Case resolved. Get the next case or end your day.");
+    render();
+  }
+
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+  }
+
+  function meetsReq(req){
+    for (const k of Object.keys(req || {})){
+      if ((state.skills[k] || 0) < req[k]) return false;
+    }
+    return true;
+  }
+
+  // ---------- UI ----------
+  function showSetup(){
+    $("setupView").style.display = "grid";
+    $("gameView").style.display = "none";
+
+    if (state.player){
+      $("name").value = state.player.name || "";
+      const p = state.player.pronouns || "they/them";
+      const preset = ["he/him","she/her","they/them"].includes(p) ? p : "custom";
+      $("pronouns").value = preset;
+      $("customPronounsWrap").style.display = preset === "custom" ? "block" : "none";
+      $("customPronouns").value = preset === "custom" ? p : "";
+      $("skin").value = state.player.skin || "#d7a98b";
+      $("hairColor").value = state.player.hairColor || "#1f1f1f";
+      $("hairStyle").value = state.player.hairStyle || "long";
+    }
+    updateAvatarPreview();
+  }
+
+  function showGame(){
+    $("setupView").style.display = "none";
+    $("gameView").style.display = "grid";
+    render();
+  }
+
+  function toast(msg){
+    $("gameToast").textContent = msg;
+    setTimeout(()=>{ if ($("gameToast").textContent === msg) $("gameToast").textContent = ""; }, 3200);
+  }
+
+  function renderBars(){
+    const k = state.kpis;
+    $("kMorale").textContent = k.morale;
+    $("kRisk").textContent = k.complianceRisk;
+    $("kTurnover").textContent = k.turnoverRisk;
+    $("kEff").textContent = k.efficiency;
+    $("kRep").textContent = k.reputation;
+    $("kTime").textContent = state.timeLeft;
+
+    $("bMorale").style.width = `${k.morale}%`;
+    $("bRisk").style.width = `${k.complianceRisk}%`;
+    $("bTurnover").style.width = `${k.turnoverRisk}%`;
+    $("bEff").style.width = `${k.efficiency}%`;
+    $("bRep").style.width = `${k.reputation}%`;
+    $("bTime").style.width = `${(state.timeLeft / MAX_TIME) * 100}%`;
+
+    $("sEmp").textContent = state.skills.empathy;
+    $("sInv").textContent = state.skills.investigation;
+    $("sPol").textContent = state.skills.policy;
+    $("sInf").textContent = state.skills.influence;
+
+    $("dayCount").textContent = `Day ${state.day}`;
+  }
+
+  function renderProfile(){
+    const p = state.player;
+    $("pName").textContent = p?.name || "—";
+    $("pMeta").textContent = `Pronouns: ${p?.pronouns || "—"} • Hospital HR Specialist`;
+
+    const head = $("pHead");
+    const hair = $("pHair");
+    head.style.setProperty("--skin", p?.skin || "#d7a98b");
+    hair.style.setProperty("--hair", p?.hairColor || "#1f1f1f");
+    hair.className = "hair";
+    hair.classList.add("hairstyle-" + (p?.hairStyle || "long"));
+  }
+
+  function renderCase(){
+    $("outcomeText").innerHTML = state.lastOutcomeHtml || "";
+
+    const c = state.activeCase;
+    if (!c){
+      $("caseTitle").textContent = "Press “Get Next Case”";
+      $("caseSev").textContent = "—";
+      $("caseTags").innerHTML = "";
+      $("caseBody").textContent = "No active case. Click “Get Next Case” to start.";
+      $("choiceBtns").innerHTML = "";
+      ["moreInfoBtn","docBtn","witnessBtn"].forEach(id=>$(id).disabled = true);
+      return;
+    }
+
+    $("caseTitle").textContent = c.title;
+    $("caseSev").textContent = c.severity;
+    $("caseTags").innerHTML = c.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
+    $("caseBody").textContent = c.baseText;
+
+    const infoDisabled = c.resolved || !canSpendTime();
+    $("moreInfoBtn").disabled = infoDisabled || state.caseKnowledge.moreInfo;
+    $("docBtn").disabled = infoDisabled || state.caseKnowledge.docs;
+    $("witnessBtn").disabled = infoDisabled || state.caseKnowledge.witness;
+
+    $("choiceBtns").innerHTML = "";
+    for (const ch of c.choices){
+      const ok = meetsReq(ch.req);
+      const btn = document.createElement("button");
+      btn.textContent = ch.label + (ok ? "" : ` (requires ${reqText(ch.req)})`);
+      btn.disabled = c.resolved || !ok;
+      btn.addEventListener("click", () => resolveChoice(ch));
+      $("choiceBtns").appendChild(btn);
+    }
+  }
+
+  function reqText(req){
+    return Object.entries(req).map(([k,v])=>{
+      const pretty = ({empathy:"Empathy", investigation:"Investigation", policy:"Policy", influence:"Influence"})[k] || k;
+      return `${pretty} ${v}`;
+    }).join(", ");
+  }
+
+  function renderHistory(){
+    const log = $("log");
+    log.innerHTML = "";
+    const entries = state.history || [];
+    if (entries.length === 0){
+      log.innerHTML = `<div class="small muted">No cases yet. Your future mistakes will appear here ❤️</div>`;
+      return;
+    }
+    for (const e of entries){
+      const d = new Date(e.ts);
+      const deltas = Object.entries(e.delta).map(([k,v])=>{
+        const sign = v>0?"+":"";
+        return `${k}:${sign}${v}`;
+      }).join(" • ");
+      const info = [];
+      if (e.knowledge.moreInfo) info.push("MoreInfo");
+      if (e.knowledge.docs) info.push("Docs");
+      if (e.knowledge.witness) info.push("Witness");
+      log.insertAdjacentHTML("beforeend", `
+        <div class="entry">
+          <div class="mono">${d.toLocaleString()}</div>
+          <div><b>Day ${e.day}:</b> ${escapeHtml(e.title)} <span class="muted">(Sev ${e.severity})</span></div>
+          <div class="muted">Choice: ${escapeHtml(e.choice)}</div>
+          <div class="muted">Impact: ${escapeHtml(deltas || "—")}</div>
+          <div class="muted">Info used: ${info.length? info.join(", ") : "None"}</div>
+        </div>
+      `);
+    }
+  }
+
+  function render(){
+    renderProfile();
+    renderBars();
+    renderCase();
+    if ($("historyCard").style.display !== "none") renderHistory();
+
+    const k = state.kpis;
+    if (k.complianceRisk >= 90){
+      $("gameToast").textContent = "⚠️ Compliance risk is critical. Expect more high-stakes cases.";
+    }
+    if (k.turnoverRisk >= 90){
+      $("gameToast").textContent = "⚠️ Turnover risk is critical. Staffing stability is deteriorating.";
+    }
+  }
+
+  // ---------- Buttons ----------
+  function bindGameUI(){
+    $("newCaseBtn").addEventListener("click", () => {
+      if (!state.player) return;
+
+      if (state.activeCase && !state.activeCase.resolved){
+        toast("You replaced an unresolved case. (Real HR energy, honestly.)");
+        applyDelta({ reputation:-1, complianceRisk:+1 });
+      }
+
+      nextCase();
+      state.lastOutcomeHtml = ""; // Patch B: clear outcome for new case
+      save();
+      render();
+    });
+
+    // ✅ New improvement: unresolved case prompt + carry over option
+    $("endDayBtn").addEventListener("click", () => {
+      const k = state.kpis;
+
+      // Day-end drift effects
+      if (k.morale < 40) k.turnoverRisk = clamp(k.turnoverRisk + 2, 0, 100);
+      if (k.complianceRisk > 70) k.reputation = clamp(k.reputation - 1, 0, 100);
+      if (k.efficiency < 40) k.morale = clamp(k.morale - 1, 0, 100);
+
+      const hasUnresolved = !!(state.activeCase && !state.activeCase.resolved);
+
+      let carryOver = false;
+      if (hasUnresolved) {
+        carryOver = window.confirm(
+          "You have an unresolved case.\n\nOK = Continue this case tomorrow\nCancel = Drop the case"
+        );
+
+        if (!carryOver) {
+          // small realism consequence for dropping it
+          applyDelta({ reputation:-1, complianceRisk:+1 });
+        }
+      }
+
+      state.day += 1;
+      state.timeLeft = MAX_TIME;
+
+      if (hasUnresolved && carryOver) {
+        // Keep the case + gathered info
+        state.lastOutcomeHtml = "";
+        toast("New day started. Case carried over — finish it today.");
+      } else {
+        // Clear as usual
+        state.activeCase = null;
+        state.caseKnowledge = { moreInfo:false, docs:false, witness:false };
+        state.lastOutcomeHtml = "";
+        toast("New day started. Get the next case.");
+      }
+
+      save();
+      render();
+    });
+
+    $("viewHistoryBtn").addEventListener("click", () => {
+      const card = $("historyCard");
+      card.style.display = card.style.display === "none" ? "block" : "none";
+      if (card.style.display !== "none") renderHistory();
+    });
+
+    $("editProfileBtn").addEventListener("click", () => {
+      showSetup();
+      $("setupToast").textContent = "Edit your profile, then press Start Simulator to resume.";
+    });
+
+    $("resetBtn").addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      state = defaultState();
+      showSetup();
+      $("setupToast").textContent = "Simulator reset.";
+    });
+
+    $("moreInfoBtn").addEventListener("click", () => {
+      if (!state.activeCase || state.caseKnowledge.moreInfo || !canSpendTime()) return;
+      spendTime(1);
+      state.caseKnowledge.moreInfo = true;
+      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.moreInfo;
+      save(); render();
+    });
+
+    $("docBtn").addEventListener("click", () => {
+      if (!state.activeCase || state.caseKnowledge.docs || !canSpendTime()) return;
+      spendTime(1);
+      state.caseKnowledge.docs = true;
+      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.docs;
+      save(); render();
+    });
+
+    $("witnessBtn").addEventListener("click", () => {
+      if (!state.activeCase || state.caseKnowledge.witness || !canSpendTime()) return;
+      spendTime(1);
+      state.caseKnowledge.witness = true;
+      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.witness;
+      save(); render();
+    });
+  }
+
+  // ---------- Persistence ----------
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+
+      // Safe defaults for older saves
+      if (typeof parsed.lastOutcomeHtml !== "string") parsed.lastOutcomeHtml = "";
+      if (typeof parsed.timeLeft !== "number") parsed.timeLeft = MAX_TIME;
+      if (!parsed.caseKnowledge) parsed.caseKnowledge = { moreInfo:false, docs:false, witness:false };
+      if (!parsed.skills) parsed.skills = { empathy:1, investigation:1, policy:1, influence:1 };
+      if (!parsed.kpis) parsed.kpis = { morale:50, complianceRisk:50, turnoverRisk:50, efficiency:50, reputation:50 };
+      if (!Array.isArray(parsed.history)) parsed.history = [];
+
+      return parsed;
+    } catch { return null; }
+  }
+
+  // ---------- Boot ----------
+  function init(){
+    bindSetupUI();
+    bindGameUI();
+
+    if (!state.player) showSetup();
+    else showGame();
+
+    if (!state.player){
+      $("name").value = "Jaray";
+      $("pronouns").value = "he/him";
+      $("skin").value = "#d7a98b";
+      $("hairColor").value = "#1f1f1f";
+      $("hairStyle").value = "long";
+      updateAvatarPreview();
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
