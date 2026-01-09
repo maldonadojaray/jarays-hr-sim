@@ -305,8 +305,14 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     return items[items.length-1].v;
   };
 
-  // 🔥 Storage key bump so old "skills/req" saves can't haunt this version
-  const STORAGE_KEY = "jaray_hr_sim_v2_noskills";
+  // structuredClone fallback (Safari/older builds sometimes act up)
+  const clone = (obj) => {
+    if (typeof structuredClone === "function") return structuredClone(obj);
+    return JSON.parse(JSON.stringify(obj));
+  };
+
+  // Storage key bump so old saves can't haunt this version
+  const STORAGE_KEY = "jaray_hr_sim_v3_noskills_bodyfix";
   const MAX_TIME = 3;
 
   const defaultState = () => ({
@@ -426,30 +432,26 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       const witness = `Witness Interview:\n- Witness A confirms the tone was harsh, but says it looked like a stress reaction.\n- Witness B says ${accused.first} later apologized quietly.\n`;
 
       const choices = [
-        {
-          label: "Informal coaching + expectations + document a memo-to-file",
+        { label: "Informal coaching + expectations + document a memo-to-file",
           outcome: () => ({
             text: `You coach ${accused.first} on professionalism, set expectations, and document a memo-to-file.\n` +
                   `You also check in with ${reporter.first} and discourage retaliation/rumors.`,
             delta: { morale:+4, complianceRisk:-3, turnoverRisk:-1, efficiency:+1, reputation:+2 }
           })
         },
-        {
-          label: "Open a formal investigation immediately",
+        { label: "Open a formal investigation immediately",
           outcome: () => ({
             text: `You initiate a formal process. Staff takes it seriously, but some interpret it as “HR escalating everything.”`,
             delta: { morale:-2, complianceRisk:-6, turnoverRisk:+1, efficiency:-2, reputation:+1 }
           })
         },
-        {
-          label: "Defer to manager to “handle it” with no HR documentation",
+        { label: "Defer to manager to “handle it” with no HR documentation",
           outcome: () => ({
             text: `You defer to the manager. Short-term it’s fast — but you create a documentation gap if the behavior repeats.`,
             delta: { morale:-3, complianceRisk:+6, turnoverRisk:+2, efficiency:+2, reputation:-3 }
           })
         },
-        {
-          label: "Mediation meeting with both parties (structured)",
+        { label: "Mediation meeting with both parties (structured)",
           outcome: () => ({
             text: `You run a structured mediation. It reduces tension if both cooperate, but requires careful boundaries.`,
             delta: { morale:+5, complianceRisk:-1, turnoverRisk:-2, efficiency:-1, reputation:+2 }
@@ -477,30 +479,26 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       const witness = `Witness Interview:\n- Another staff member says the manager publicly mocked “special schedules.”\n- A charge nurse suggests a swap rotation could work if planned ahead.`;
 
       const choices = [
-        {
-          label: "Begin interactive process; explore options (swap rotation / partial approval) and document",
+        { label: "Begin interactive process; explore options (swap rotation / partial approval) and document",
           outcome: () => ({
             text: `You start the interactive process, gather info, and work options that balance care delivery and fairness.\n` +
                   `You document the steps and set a follow-up deadline.`,
             delta: { morale:+4, complianceRisk:-6, turnoverRisk:-2, efficiency:-2, reputation:+3 }
           })
         },
-        {
-          label: "Deny the request outright due to staffing needs",
+        { label: "Deny the request outright due to staffing needs",
           outcome: () => ({
             text: `You deny it. It may be operationally simpler, but you increase risk and push a valuable employee toward quitting.`,
             delta: { morale:-6, complianceRisk:+7, turnoverRisk:+6, efficiency:+2, reputation:-4 }
           })
         },
-        {
-          label: "Temporarily approve verbally without documentation",
+        { label: "Temporarily approve verbally without documentation",
           outcome: () => ({
             text: `You say yes informally. People feel supported — until someone calls it favoritism and you have nothing documented.`,
             delta: { morale:+2, complianceRisk:+5, turnoverRisk:-1, efficiency:+1, reputation:-1 }
           })
         },
-        {
-          label: "Coach manager on accommodation language; partner with scheduling to implement a pilot",
+        { label: "Coach manager on accommodation language; partner with scheduling to implement a pilot",
           outcome: () => ({
             text: `You address the manager’s approach and implement a short pilot schedule with review points.`,
             delta: { morale:+3, complianceRisk:-4, turnoverRisk:-2, efficiency:-1, reputation:+4 }
@@ -527,29 +525,25 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       const witness = `Witness Interview:\n- A coworker confirms the manager said, “Snitches make things harder for everyone.”\n- Another witness says the manager is strict but not always targeted.`;
 
       const choices = [
-        {
-          label: "Open formal retaliation investigation; stabilize schedule pending review",
+        { label: "Open formal retaliation investigation; stabilize schedule pending review",
           outcome: () => ({
             text: `You initiate a formal retaliation investigation and implement interim protections (schedule stabilization, no-contact guidance).`,
             delta: { morale:+2, complianceRisk:-10, turnoverRisk:-3, efficiency:-3, reputation:+4 }
           })
         },
-        {
-          label: "Treat it as a “communication issue” and advise the reporter to talk to the manager",
+        { label: "Treat it as a “communication issue” and advise the reporter to talk to the manager",
           outcome: () => ({
             text: `You under-react. If retaliation is real, you expose the reporter and the org to major risk.`,
             delta: { morale:-6, complianceRisk:+12, turnoverRisk:+6, efficiency:+1, reputation:-6 }
           })
         },
-        {
-          label: "Meet manager privately; require written rationale for schedule changes; monitor",
+        { label: "Meet manager privately; require written rationale for schedule changes; monitor",
           outcome: () => ({
             text: `You demand written rationale and increase oversight. It may reduce risk, but could be insufficient if retaliation is severe.`,
             delta: { morale:+1, complianceRisk:-6, turnoverRisk:-1, efficiency:-1, reputation:+2 }
           })
         },
-        {
-          label: "Escalate to executive sponsor / legal consult channel",
+        { label: "Escalate to executive sponsor / legal consult channel",
           outcome: () => ({
             text: `You escalate appropriately for a high-stakes case, ensuring consistency and protection.`,
             delta: { morale:+1, complianceRisk:-8, turnoverRisk:-2, efficiency:-2, reputation:+3 }
@@ -579,29 +573,25 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       const witness = `Panel Notes:\n- Manager loved Candidate 1.\n- Charge nurse preferred Candidate 2 for reliability.\n- Peer panel felt Candidate 3 could “win the unit,” but worried about professionalism.`;
 
       const choices = [
-        {
-          label: `Hire ${c2.name} (steady / reliability-first)`,
+        { label: `Hire ${c2.name} (steady / reliability-first)`,
           outcome: () => ({
             text: `You hire ${c2.name}. The unit stabilizes, morale improves. Efficiency ramps slower, but retention risk improves.`,
             delta: { morale:+3, complianceRisk:-1, turnoverRisk:-3, efficiency:+1, reputation:+2 }
           })
         },
-        {
-          label: `Hire ${c1.name} (performance-first)`,
+        { label: `Hire ${c1.name} (performance-first)`,
           outcome: () => ({
             text: `You hire ${c1.name}. Efficiency improves, but the risk is culture friction if coaching isn’t strong.`,
             delta: { morale:-1, complianceRisk:+1, turnoverRisk:+1, efficiency:+4, reputation:+2 }
           })
         },
-        {
-          label: `Hire ${c3.name} (culture-first)`,
+        { label: `Hire ${c3.name} (culture-first)`,
           outcome: () => ({
             text: `You hire ${c3.name}. The unit feels supported, but you’ll need clear boundaries training.`,
             delta: { morale:+4, complianceRisk:+2, turnoverRisk:-1, efficiency:+1, reputation:+1 }
           })
         },
-        {
-          label: "Delay decision; request additional reference checks (takes time but reduces risk)",
+        { label: "Delay decision; request additional reference checks (takes time but reduces risk)",
           outcome: () => ({
             text: `You slow down to verify. It frustrates leadership, but reduces long-term risk.`,
             delta: { morale:+0, complianceRisk:-3, turnoverRisk:-1, efficiency:-2, reputation:-1 }
@@ -626,29 +616,25 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       const witness = `Witness Interview:\n- One coworker says, “Everyone does it, we just don’t say it out loud.”\n- Another says the process can be followed if you reassign one task during peak hours.`;
 
       const choices = [
-        {
-          label: "Enforce policy immediately + coaching + document; recommend staffing/workflow fix",
+        { label: "Enforce policy immediately + coaching + document; recommend staffing/workflow fix",
           outcome: () => ({
             text: `You enforce the rule and document. You also propose a workflow tweak to make compliance achievable.`,
             delta: { morale:-1, complianceRisk:-8, turnoverRisk:+1, efficiency:-1, reputation:+2 }
           })
         },
-        {
-          label: "Ignore it to keep throughput high",
+        { label: "Ignore it to keep throughput high",
           outcome: () => ({
             text: `Short-term efficiency rises. Long-term you’re gambling with audits and safety events.`,
             delta: { morale:-2, complianceRisk:+10, turnoverRisk:+2, efficiency:+4, reputation:-4 }
           })
         },
-        {
-          label: "Run a rapid improvement pilot: adjust staffing during peak times + retrain",
+        { label: "Run a rapid improvement pilot: adjust staffing during peak times + retrain",
           outcome: () => ({
             text: `You treat it as a systems problem and run a pilot. Staff buy-in improves and compliance rises.`,
             delta: { morale:+3, complianceRisk:-6, turnoverRisk:-2, efficiency:+2, reputation:+3 }
           })
         },
-        {
-          label: "Escalate to safety committee; require incident reporting for near-misses",
+        { label: "Escalate to safety committee; require incident reporting for near-misses",
           outcome: () => ({
             text: `You establish reporting expectations and move it into the formal safety channel.`,
             delta: { morale:+1, complianceRisk:-7, turnoverRisk:-1, efficiency:-2, reputation:+2 }
@@ -701,16 +687,15 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
 
     let out = choice.outcome({ knowledgeBonus, kpis: state.kpis });
 
-    // Knowledge effects stay — they make gameplay better
     if (knowledgeBonus >= 2){
-      out = structuredClone(out);
-      out.delta = structuredClone(out.delta);
+      out = clone(out);
+      out.delta = clone(out.delta || {});
       out.delta.complianceRisk = (out.delta.complianceRisk || 0) - 1;
       out.delta.reputation = (out.delta.reputation || 0) + 1;
       out.text += `\n\nBecause you gathered solid information first, your documentation is cleaner and leadership pushback is lower.`;
     } else if (knowledgeBonus === 0 && c.severity >= 4){
-      out = structuredClone(out);
-      out.delta = structuredClone(out.delta);
+      out = clone(out);
+      out.delta = clone(out.delta || {});
       out.delta.complianceRisk = (out.delta.complianceRisk || 0) + 2;
       out.delta.reputation = (out.delta.reputation || 0) - 1;
       out.text += `\n\nYou acted with limited facts on a high-stakes case. Even if your intent is good, that increases risk.`;
@@ -726,7 +711,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       tags: c.tags,
       choice: choice.label,
       delta: out.delta || {},
-      knowledge: structuredClone(state.caseKnowledge)
+      knowledge: clone(state.caseKnowledge)
     });
     state.history = state.history.slice(0, 20);
 
@@ -742,7 +727,21 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
   }
 
   function escapeHtml(str){
-    return str.replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+    return String(str).replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+  }
+
+  // ✅ FIX: build case body from knowledge flags so render() never nukes info
+  function appendSection(base, sectionText){
+    if (!sectionText) return base;
+    if (!base) return sectionText;
+    return base + "\n\n" + sectionText;
+  }
+  function composeCaseBody(c){
+    let txt = c.baseText;
+    if (state.caseKnowledge.moreInfo) txt = appendSection(txt, c.info.moreInfo);
+    if (state.caseKnowledge.docs)     txt = appendSection(txt, c.info.docs);
+    if (state.caseKnowledge.witness)  txt = appendSection(txt, c.info.witness);
+    return txt;
   }
 
   // ---------- UI ----------
@@ -824,7 +823,9 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     $("caseTitle").textContent = c.title;
     $("caseSev").textContent = c.severity;
     $("caseTags").innerHTML = c.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
-    $("caseBody").textContent = c.baseText;
+
+    // ✅ FIXED: body persists based on flags
+    $("caseBody").textContent = composeCaseBody(c);
 
     const infoDisabled = c.resolved || !canSpendTime();
     $("moreInfoBtn").disabled = infoDisabled || state.caseKnowledge.moreInfo;
@@ -834,8 +835,8 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     $("choiceBtns").innerHTML = "";
     for (const ch of c.choices){
       const btn = document.createElement("button");
-      btn.textContent = ch.label; // ✅ no req text
-      btn.disabled = c.resolved;  // ✅ never locked behind skills
+      btn.textContent = ch.label;
+      btn.disabled = c.resolved;
       btn.addEventListener("click", () => resolveChoice(ch));
       $("choiceBtns").appendChild(btn);
     }
@@ -851,14 +852,14 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     }
     for (const e of entries){
       const d = new Date(e.ts);
-      const deltas = Object.entries(e.delta).map(([k,v])=>{
+      const deltas = Object.entries(e.delta || {}).map(([k,v])=>{
         const sign = v>0?"+":"";
         return `${k}:${sign}${v}`;
       }).join(" • ");
       const info = [];
-      if (e.knowledge.moreInfo) info.push("MoreInfo");
-      if (e.knowledge.docs) info.push("Docs");
-      if (e.knowledge.witness) info.push("Witness");
+      if (e.knowledge?.moreInfo) info.push("MoreInfo");
+      if (e.knowledge?.docs) info.push("Docs");
+      if (e.knowledge?.witness) info.push("Witness");
       log.insertAdjacentHTML("beforeend", `
         <div class="entry">
           <div class="mono">${d.toLocaleString()}</div>
@@ -905,7 +906,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     $("endDayBtn").addEventListener("click", () => {
       const k = state.kpis;
 
-      // Day-end drift effects
       if (k.morale < 40) k.turnoverRisk = clamp(k.turnoverRisk + 2, 0, 100);
       if (k.complianceRisk > 70) k.reputation = clamp(k.reputation - 1, 0, 100);
       if (k.efficiency < 40) k.morale = clamp(k.morale - 1, 0, 100);
@@ -958,11 +958,11 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       $("setupToast").textContent = "Simulator reset.";
     });
 
+    // ✅ FIXED: info buttons only flip flags; render() composes body
     $("moreInfoBtn").addEventListener("click", () => {
       if (!state.activeCase || state.caseKnowledge.moreInfo || !canSpendTime()) return;
       spendTime(1);
       state.caseKnowledge.moreInfo = true;
-      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.moreInfo;
       save(); render();
     });
 
@@ -970,7 +970,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       if (!state.activeCase || state.caseKnowledge.docs || !canSpendTime()) return;
       spendTime(1);
       state.caseKnowledge.docs = true;
-      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.docs;
       save(); render();
     });
 
@@ -978,7 +977,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       if (!state.activeCase || state.caseKnowledge.witness || !canSpendTime()) return;
       spendTime(1);
       state.caseKnowledge.witness = true;
-      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.witness;
       save(); render();
     });
   }
