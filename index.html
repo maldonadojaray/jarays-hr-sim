@@ -1,5 +1,3 @@
-HR Game Version 2
-
 
 
 <!doctype html>
@@ -718,6 +716,38 @@ Required steps:
       Store.markDirty();
     }
   }
+function hirePerson({ name, role, unit, shift }){
+  const s = Store.state;
+  ensureRoster();
+
+  const newEmp = {
+    id: "emp_" + Math.random().toString(36).slice(2),
+    name: (name || `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`).trim(),
+    role: role || weightedPick(ROLE_POOL),
+    unit: unit || pick(UNITS),
+    shift: shift || pick(["Days","Nights"]),
+    tenure: "New hire (0-3 months)",
+    traits: pick([["eager","green"],["quiet","reliable"],["fast","careless"],["warm","people-pleaser"]]),
+    coachingCount: 0,
+    disciplineCount: 0
+  };
+
+  s.roster.unshift(newEmp); // show new hires at top
+  Store.markDirty();
+  return newEmp;
+}
+
+function terminatePerson(personId){
+  const s = Store.state;
+  if (!s.roster || !personId) return null;
+
+  const idx = s.roster.findIndex(p => p.id === personId);
+  if (idx === -1) return null;
+
+  const removed = s.roster.splice(idx, 1)[0];
+  Store.markDirty();
+  return removed;
+}
 
   function genPerson({ preferRole=null, preferUnit=null, preferId=null } = {}){
     ensureRoster();
@@ -899,6 +929,70 @@ Required steps:
 - Your last action: ${resolution.choiceLabel || "—"}
 - Info gathered: ${infoBonus}/5
 - Policy match: ${pm.match || 0}/${pm.requiredCount || 0}`;
+
+       if (type === "TERMINATION_APPEAL"){
+      const formerName = resolution?.terminatedName || "the former employee";
+
+      const base =
+`Termination appeal received.
+
+${formerName} files a formal appeal alleging the termination was unfair / inconsistent.
+They request reinstatement or a settlement discussion.
+
+Leadership wants HR to respond with documentation, rationale, and policy alignment.${commonFooter}`;
+
+      const info = {
+        moreInfo:
+`More Info:
+- Appeal deadlines may apply.
+- If documentation is thin, this escalates fast.`,
+        witness:
+`Witness:
+- A coworker says “everyone knew it was coming.”
+- Another claims the manager had it out for them.`,
+        schedule:
+`Schedule/Timecard:
+- Review incidents and any schedule changes near the termination.`,
+        audit:
+`Audit Logs:
+- Preserve any relevant logs if policy violations are involved.`,
+        legal:
+`Compliance/Legal Consult:
+- Keep responses factual and consistent; compile file and timeline.`
+      };
+
+      const choices = [
+        { label:"Compile full file + timeline + leadership review",
+          text:`You assemble documentation, timeline, witness notes, and policy rationale for leadership review.`,
+          delta:{ complianceRisk:-7, reputation:+3, morale:+0, efficiency:-2, turnoverRisk:-1 }
+        },
+        { label:"Offer informal meeting only; no written response",
+          text:`You attempt to smooth it over without a formal response. If it escalates, you’re exposed.`,
+          delta:{ complianceRisk:+8, reputation:-5, morale:-1, efficiency:+1, turnoverRisk:+2 }
+        },
+        { label:"Escalate to legal + formalize appeal process",
+          text:`You involve legal and formalize the appeal pathway for a defensible disposition.`,
+          delta:{ complianceRisk:-8, reputation:+2, morale:-1, efficiency:-3, turnoverRisk:+0 }
+        },
+        { label:"Deny appeal quickly as “unfounded”",
+          text:`You deny rapidly. If the file is weak, this can trigger external escalation.`,
+          delta:{ complianceRisk:+12, reputation:-7, morale:-2, efficiency:+1, turnoverRisk:+3 }
+        }
+      ];
+
+      return makeCase({
+        title:"Follow-up: Termination Appeal / Grievance",
+        severity: 4,
+        tags:[...((seedCase.tags)||[]), ...baseTags, "Termination", "Grievance"],
+        baseText: base,
+        variables:{ ...seedCase.variables },
+        info,
+        choices,
+        requiredPolicies:["CORRECTIVE_ACTION","ANTI_RETALIATION"],
+        threadId: tid,
+        followUpType: type
+      });
+    }
 
     if (type === "GRIEVANCE"){
       const base =
@@ -1298,22 +1392,22 @@ created an unsafe situation. Leadership wants immediate HR involvement.${commonF
     const options = [];
 
     if (tagSet.has("Retaliation") || tagSet.has("Conduct") || tagSet.has("Team Conflict") || tagSet.has("Culture")){
-      options.push({ type:"GRIEVANCE", w: 18 + (turnoverUp?6:0) + (repDown?6:0) });
+      options.push({ v:"GRIEVANCE", w: 18 + (turnoverUp?6:0) + (repDown?6:0) });
     }
     if (tagSet.has("HIPAA") || tagSet.has("Confidentiality") || tagSet.has("Ethics Hotline") || riskUp || k.complianceRisk >= 80){
-      options.push({ type:"COMPLIANCE_REVIEW", w: 16 + (riskUp?10:0) + (actedBlindOnHighSev?8:0) });
+      options.push({ v:"COMPLIANCE_REVIEW", w: 16 + (riskUp?10:0) + (actedBlindOnHighSev?8:0) });
     }
     if (tagSet.has("Confidentiality") || tagSet.has("HIPAA")){
-      options.push({ type:"PATIENT_COMPLAINT", w: 12 + (riskUp?8:0) });
+      options.push({ v:"PATIENT_COMPLAINT", w: 12 + (riskUp?8:0) });
     }
     if (tagSet.has("Payroll") || tagSet.has("Compensation")){
-      options.push({ type:"WAGE_CLAIM", w: 18 + (riskUp?6:0) });
+      options.push({ v:"WAGE_CLAIM", w: 18 + (riskUp?6:0) });
     }
     if (tagSet.has("Burnout") || tagSet.has("Retention") || tagSet.has("Team Conflict") || turnoverUp || k.turnoverRisk >= 80){
-      options.push({ type:"EXIT_INTERVIEW", w: 14 + (turnoverUp?10:0) });
+      options.push({ v:"EXIT_INTERVIEW", w: 14 + (turnoverUp?10:0) });
     }
     if (tagSet.has("Safety") || tagSet.has("Efficiency")){
-      options.push({ type:"SAFETY_EVENT", w: 14 + (riskUp?8:0) });
+      options.push({ v:"SAFETY_EVENT", w: 14 + (riskUp?8:0) });
     }
 
     const chosen = (options.length ? weightedPick(options) : "COMPLIANCE_REVIEW");
@@ -1469,13 +1563,21 @@ Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Witn
     },
 
     function tHiring(){
-      const v = genVars({minSev:1,maxSev:3});
-      const tags = ["Hiring","Selection","Operations"];
-      const c1 = `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`;
-      const c2 = `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`;
-      const c3 = `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`;
-      const base =
+  const v = genVars({minSev:1,maxSev:3});
+  const tags = ["Hiring","Selection","Operations"];
+
+  const vacancyRole = weightedPick(ROLE_POOL);
+  const vacancyUnit = pick(UNITS);
+  const vacancyShift = pick(["Days","Nights"]);
+
+  const c1 = `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`;
+  const c2 = `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`;
+  const c3 = `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`;
+
+  const base =
 `You have 1 open position to fill.
+
+Vacancy: ${vacancyRole} • ${vacancyUnit} • ${vacancyShift}
 
 Candidates:
 1) ${c1} — polished, “leader vibe.”
@@ -1484,40 +1586,44 @@ Candidates:
 
 Leadership pressure: ${v.leadershipPressure}/5 • Reference strength: ${v.evidenceStrength}/5.`;
 
-      const info = {
-        moreInfo:`More Info:\n- Candidate 1: strong performance, feedback friction.\n- Candidate 2: reliability.\n- Candidate 3: culture fit, boundary risk.`,
-        witness:`Panel Notes:\n- Manager wants speed; peers want stability.`,
-        schedule:`Schedule/Timecard:\n- Vacancy is driving overtime.`,
-        audit:`Audit Logs:\n- Not primary.`,
-        legal:`Compliance/Legal:\n- Use consistent criteria; document rationale.`
-      };
+  const info = {
+    moreInfo:`More Info:\n- Candidate 1: strong performer, feedback friction risk.\n- Candidate 2: stable and consistent.\n- Candidate 3: culture fit, boundary coaching needed.`,
+    witness:`Panel Notes:\n- Manager wants speed; peers want stability.`,
+    schedule:`Schedule/Timecard:\n- Vacancy is driving overtime and burnout.`,
+    audit:`Audit Logs:\n- Not primary.`,
+    legal:`Compliance/Legal:\n- Use consistent criteria and document rationale.`
+  };
 
-      const choices = [
-        { label:`Hire ${c2} (reliability-first)`,
-          text:`You hire ${c2}. Stability improves.`,
-          delta:{ morale:+3, complianceRisk:-1, turnoverRisk:-3, efficiency:+1, reputation:+2 }
-        },
-        { label:`Hire ${c1} (performance-first)`,
-          text:`You hire ${c1}. Efficiency rises; culture friction risk.`,
-          delta:{ morale:-1, complianceRisk:+1, turnoverRisk:+1, efficiency:+4, reputation:+2 }
-        },
-        { label:`Hire ${c3} (culture-first)`,
-          text:`You hire ${c3}. Morale rises; boundaries coaching needed.`,
-          delta:{ morale:+4, complianceRisk:+2, turnoverRisk:-1, efficiency:+1, reputation:+1 }
-        },
-        { label:`Delay for additional references`,
-          text:`Slower, safer. Leadership annoyed.`,
-          delta:{ morale:+0, complianceRisk:-3, turnoverRisk:-1, efficiency:-2, reputation:-1 }
-        }
-      ];
-
-      return makeCase({
-        title:"Hiring Decision Under Pressure",
-        severity:v.severity, tags, baseText: base,
-        variables:{ ...v },
-        info, choices, requiredPolicies:["CORRECTIVE_ACTION"]
-      });
+  const choices = [
+    { label:`Hire ${c2} (reliability-first)`,
+      text:`You hire ${c2}. Stability improves.`,
+      delta:{ morale:+3, complianceRisk:-1, turnoverRisk:-3, efficiency:+1, reputation:+2 },
+      effects:{ hire:{ name:c2, role:vacancyRole, unit:vacancyUnit, shift:vacancyShift } }
     },
+    { label:`Hire ${c1} (performance-first)`,
+      text:`You hire ${c1}. Efficiency rises; culture friction risk.`,
+      delta:{ morale:-1, complianceRisk:+1, turnoverRisk:+1, efficiency:+4, reputation:+2 },
+      effects:{ hire:{ name:c1, role:vacancyRole, unit:vacancyUnit, shift:vacancyShift } }
+    },
+    { label:`Hire ${c3} (culture-first)`,
+      text:`You hire ${c3}. Morale rises; boundaries coaching needed.`,
+      delta:{ morale:+4, complianceRisk:+2, turnoverRisk:-1, efficiency:+1, reputation:+1 },
+      effects:{ hire:{ name:c3, role:vacancyRole, unit:vacancyUnit, shift:vacancyShift } }
+    },
+    { label:`Delay for additional references`,
+      text:`Slower, safer. Leadership annoyed.`,
+      delta:{ morale:+0, complianceRisk:-3, turnoverRisk:-1, efficiency:-2, reputation:-1 }
+    }
+  ];
+
+  return makeCase({
+    title:"Hiring Decision Under Pressure",
+    severity:v.severity, tags, baseText: base,
+    variables:{ vacancyRole, vacancyUnit, vacancyShift, ...v },
+    info, choices,
+    requiredPolicies:["CORRECTIVE_ACTION"]
+  });
+},
 
     function tSafety(){
       const emp = genPerson();
@@ -1794,6 +1900,71 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
     }
   ];
 
+  function tTermination(){
+  ensureRoster();
+  const s = Store.state;
+
+  // --- PROTECTION: don't pick Unit Manager or Physician ---
+  const protectedRoles = new Set(["Unit Manager","Physician"]);
+  let pool = (s.roster || []).filter(p => !protectedRoles.has(p.role));
+
+  // If roster is small or somehow all protected, fall back safely to whole roster
+  if (!pool.length) pool = (s.roster || []).slice();
+
+  const person = pick(pool);
+
+  const v = genVars({minSev:3,maxSev:5});
+  const tags = ["Termination","Corrective Action","Risk"];
+
+  const base =
+`Escalation review for ${person.name} (${person.role}, ${person.unit}, ${person.shift}).
+
+Manager requests termination due to repeated issues and “team disruption.”
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Prior discipline flagged: ${v.priorDiscipline ? "Yes" : "No"} • Leadership pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Prior coaching count: ${person.coachingCount}\n- Prior discipline count: ${person.disciplineCount}\n- Documentation quality varies.`,
+    witness:`Witness:\n- Some staff confirm pattern.\n- Others claim favoritism or inconsistent enforcement.`,
+    schedule:`Schedule/Timecard:\n- Review incident timing, coverage constraints, and whether schedule changes contributed.`,
+    audit:`Audit Logs:\n- Preserve any relevant system records if policy violations are involved.`,
+    legal:`Compliance/Legal:\n- Ensure progressive discipline alignment unless severity warrants immediate action. Document rationale.`
+  };
+
+  const choices = [
+    { label:"PIP / last-chance plan + documented checkpoints",
+      text:`You implement a last-chance plan with measurable expectations and a short checkpoint window.`,
+      delta:{ complianceRisk:-3, morale:+1, turnoverRisk:-1, efficiency:-2, reputation:+2 },
+      coach:1
+    },
+    { label:"Final written warning + reassignment review",
+      text:`You issue a final warning and explore reassignment if feasible.`,
+      delta:{ complianceRisk:-4, morale:+0, turnoverRisk:-1, efficiency:-1, reputation:+2 },
+      discipline:1
+    },
+    { label:"Terminate employment (remove from roster)",
+      text:`You proceed with termination with documentation and policy rationale.`,
+      delta:{ complianceRisk:-2, morale:-2, turnoverRisk:+1, efficiency:+1, reputation:+0 },
+      discipline:1,
+      effects:{ terminate:{ personId: person.id } }
+    },
+    { label:"Decline termination; require stronger documentation first",
+      text:`You block termination until documentation is cleaned up. Leadership frustration rises.`,
+      delta:{ complianceRisk:+2, morale:+0, turnoverRisk:+1, efficiency:-1, reputation:-1 }
+    }
+  ];
+
+  return makeCase({
+    title:"Termination Request Review",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ subjectId: person.id, ...v },
+    info,
+    choices,
+    requiredPolicies:["CORRECTIVE_ACTION"]
+  });
+}
+
   // ---------- mechanics ----------
   function canSpendTime(){ return Store.state.timeLeft > 0; }
   function spendTime(n=1){
@@ -1924,6 +2095,7 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
       { v: templates[7], w: 12 + wTurn*6 },
       { v: templates[8], w: 12 + wTurn*8 },
       { v: templates[9], w: 8 + wHigh*14 },
+      { v: tTermination, w: 6 + wHigh*8 },
     ]);
 
     s.activeCase = pickTemplate();
@@ -1973,6 +2145,39 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
     }
 
     applyDelta(outDelta);
+    // --- roster effects (hire/terminate) ---
+const effects = choice.effects || null;
+
+// Hiring: add employee to roster
+if (effects && effects.hire){
+  const hired = hirePerson(effects.hire);
+  outText += `\n\nHiring outcome: ${hired.name} was added to the staff roster (${hired.role}, ${hired.unit}, ${hired.shift}).`;
+}
+
+// Termination: remove employee from roster + queue termination appeal follow-up
+if (effects && effects.terminate){
+  const removed = terminatePerson(effects.terminate.personId);
+  if (removed){
+    outText += `\n\nTermination executed: ${removed.name} has been removed from the staff roster.`;
+
+    const tid = c.threadId || newThread(c);
+    touchThread(tid, [...(c.tags||[]), "Termination"]);
+
+    const appeal = buildFollowUpCase("TERMINATION_APPEAL", tid, c, {
+      delta: outDelta || {},
+      infoBonus,
+      policyMatch: pm,
+      choiceLabel: choice.label,
+      terminatedName: removed.name
+    });
+    addToQueue(appeal);
+
+    toast(`⚡ Follow-up queued: ${appeal.title}`);
+  } else {
+    outText += `\n\nTermination note: employee not found in roster (may have already been removed).`;
+  }
+}
+
 
     // roster history bumps
     const v = c.variables || {};
