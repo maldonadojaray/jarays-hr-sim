@@ -312,7 +312,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
   };
 
   // Storage key bump so old saves can't haunt this version
-  const STORAGE_KEY = "jaray_hr_sim_v3_noskills_bodyfix";
+  const STORAGE_KEY = "jaray_hr_sim_v4_plus5_scenarios";
   const MAX_TIME = 3;
 
   const defaultState = () => ({
@@ -414,7 +414,12 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     return { first, last, role, unit, shift, tenure };
   }
 
+  function makeCase(title, baseText, severity, tags, info, choices){
+    return { id: Math.random().toString(36).slice(2), title, baseText, severity, tags, info, choices, resolved:false };
+  }
+
   const templates = [
+    // 1) Conduct
     function caseConductComment(){
       const accused = genPerson();
       const reporter = genPerson();
@@ -462,6 +467,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       return makeCase("Unprofessional Comment on Unit", base, sev, tags, {moreInfo, docs, witness}, choices);
     },
 
+    // 2) Accommodation
     function caseSchedulingAccommodation(){
       const emp = genPerson();
       const manager = genPerson();
@@ -509,6 +515,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       return makeCase("Scheduling Accommodation Request", base, sev, tags, {moreInfo, docs, witness}, choices);
     },
 
+    // 3) Retaliation
     function caseRetaliationRumor(){
       const reporter = genPerson();
       const accusedMgr = genPerson();
@@ -554,6 +561,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       return makeCase("Retaliation Allegation After Safety Report", base, sev, tags, {moreInfo, docs, witness}, choices);
     },
 
+    // 4) Hiring
     function caseHiringDecision(){
       const c1 = {name: `${pick(names.first)} ${pick(names.last)}`};
       const c2 = {name: `${pick(names.first)} ${pick(names.last)}`};
@@ -601,6 +609,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       return makeCase("Hiring Decision Under Pressure", base, sev, tags, {moreInfo, docs, witness}, choices);
     },
 
+    // 5) Efficiency / Safety
     function caseEfficiencyCornerCut(){
       const emp = genPerson();
       const sev = rnd(2,5);
@@ -642,23 +651,314 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
         }
       ];
       return makeCase("Cutting Corners to Improve Throughput", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    // ------------------ NEW SCENARIOS (6–10) ------------------
+
+    // 6) Payroll / Wage discrepancy
+    function casePayrollDiscrepancy(){
+      const emp = genPerson();
+      const payroll = genPerson();
+      const sev = rnd(2,4);
+      const tags = ["Payroll","Compensation","Trust"];
+      const base =
+        `${emp.first} ${emp.last} (${emp.role}, ${emp.unit}) reports a pay issue.\n\n` +
+        `${emp.first} says their last paycheck is short by several hours and claims they worked the full shift.\n` +
+        `Payroll contact ${payroll.first} (${payroll.role}) says the timecard shows a missed punch and was “processed correctly.”\n\n` +
+        `The employee is upset and says this keeps happening to people on the unit.`;
+
+      const moreInfo =
+        `More Info:\n- ${emp.first} says they clocked in but the badge reader “lags.”\n- The unit is understaffed; people work through breaks.\n- Supervisor says they “can’t approve edits without proof.”\n- Two other staff informally mention similar missing punches recently.`;
+
+      const docs =
+        `Documentation:\n- Timecard shows missing punch on one end of the shift.\n- Badge reader logs show entries near the shift start.\n- Policy outlines a correction workflow and timeline.\n- Prior corrections exist for this unit in the last 30 days.`;
+
+      const witness =
+        `Witness Interview:\n- Coworker confirms ${emp.first} was present at the start of shift.\n- Charge nurse recalls ${emp.first} taking report on time.\n- Payroll notes: “We can correct if manager signs off.”`;
+
+      const choices = [
+        { label: "Run a quick audit (badge logs + staffing sheet), correct pay if supported, document pattern",
+          outcome: () => ({
+            text:
+              `You verify evidence (badge logs and staffing sheet), coordinate a correction if supported, and document the pattern.\n` +
+              `You also flag the unit for a punch-reliability check.`,
+            delta: { morale:+4, complianceRisk:-4, turnoverRisk:-2, efficiency:-1, reputation:+3 }
+          })
+        },
+        { label: "Tell employee to resolve it with payroll; no HR involvement",
+          outcome: () => ({
+            text:
+              `You push it back to payroll. The employee feels dismissed and trust in HR drops.\n` +
+              `If there’s a real systems issue, it continues quietly.`,
+            delta: { morale:-5, complianceRisk:+4, turnoverRisk:+4, efficiency:+1, reputation:-4 }
+          })
+        },
+        { label: "Approve a one-time correction verbally, no documentation",
+          outcome: () => ({
+            text:
+              `You make it go away fast. It boosts morale short-term — until another employee asks why they didn’t get the same treatment.\n` +
+              `You’ve also created a documentation gap.`,
+            delta: { morale:+2, complianceRisk:+3, turnoverRisk:-1, efficiency:+2, reputation:-2 }
+          })
+        },
+        { label: "Escalate to payroll leadership; implement a unit-wide punch correction SOP refresher",
+          outcome: () => ({
+            text:
+              `You escalate to payroll leadership and implement a clear SOP refresher for punches and corrections.\n` +
+              `It takes time, but reduces repeat issues and stabilizes trust.`,
+            delta: { morale:+2, complianceRisk:-5, turnoverRisk:-2, efficiency:-2, reputation:+4 }
+          })
+        }
+      ];
+
+      return makeCase("Paycheck Discrepancy and Missing Punches", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    // 7) HIPAA / confidentiality boundary concern
+    function caseConfidentialityConcern(){
+      const emp = genPerson();
+      const reporter = genPerson();
+      const sev = rnd(3,5);
+      const tags = ["Confidentiality","HIPAA","Compliance"];
+      const base =
+        `${reporter.first} ${reporter.last} (${reporter.role}, ${reporter.unit}) reports a privacy concern.\n\n` +
+        `${reporter.first} says they overheard ${emp.first} ${emp.last} (${emp.role}) discussing identifiable patient details in a public area.\n` +
+        `No patient complaint has been filed yet, but staff are worried this could become a reportable event.\n\n` +
+        `You need to act carefully: correct behavior, document appropriately, and avoid panic.`;
+
+      const moreInfo =
+        `More Info:\n- The discussion happened near an elevator / hallway intersection.\n- ${emp.first} claims it was “clinical handoff context.”\n- Unit culture: people talk fast and loud during peak times.\n- A supervisor previously warned staff about volume in public areas.`;
+
+      const docs =
+        `Documentation:\n- Policy: no identifiable patient information in public spaces.\n- A similar incident occurred last quarter on a different unit.\n- Training records show ${emp.first} completed annual privacy training.\n- No formal incident report has been filed yet.`;
+
+      const witness =
+        `Witness Interview:\n- Witness A confirms name and diagnosis were said.\n- Witness B says it was brief and seemed unintentional.\n- Security camera shows the location is high-traffic (but audio is not recorded).`;
+
+      const choices = [
+        { label: "Immediate coaching + document memo + file appropriate incident channel if required; reinforce unit reminder",
+          outcome: () => ({
+            text:
+              `You coach ${emp.first} immediately, document the conversation, and ensure the proper incident channel is used if required.\n` +
+              `You also reinforce a unit-wide reminder about public-space conversations.`,
+            delta: { morale:-1, complianceRisk:-10, turnoverRisk:+1, efficiency:-1, reputation:+3 }
+          })
+        },
+        { label: "Treat it as informal: verbal reminder only, no documentation",
+          outcome: () => ({
+            text:
+              `You keep it informal. It feels less punitive — but if the same behavior repeats, you have no record and higher compliance exposure.`,
+            delta: { morale:+1, complianceRisk:+7, turnoverRisk:+1, efficiency:+1, reputation:-3 }
+          })
+        },
+        { label: "Launch formal investigation with broad interviews immediately",
+          outcome: () => ({
+            text:
+              `You go fully formal and wide. Compliance risk drops, but staff feel targeted and productivity dips due to interview time.`,
+            delta: { morale:-4, complianceRisk:-8, turnoverRisk:+2, efficiency:-3, reputation:+2 }
+          })
+        },
+        { label: "Partner with privacy officer for targeted review + micro-training at shift huddle",
+          outcome: () => ({
+            text:
+              `You partner with the privacy officer for a targeted review and run micro-training at huddles.\n` +
+              `Staff get a practical reset without a full-blown panic.`,
+            delta: { morale:+1, complianceRisk:-9, turnoverRisk:-1, efficiency:-2, reputation:+4 }
+          })
+        }
+      ];
+
+      return makeCase("Confidentiality Concern in Public Area", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    // 8) Performance vs burnout
+    function caseBurnoutPerformance(){
+      const emp = genPerson();
+      const manager = genPerson();
+      const sev = rnd(2,4);
+      const tags = ["Performance","Burnout","Retention"];
+      const base =
+        `${manager.first} ${manager.last} (${manager.role}) requests HR guidance.\n\n` +
+        `${manager.first} says ${emp.first} ${emp.last} (${emp.role}, ${emp.unit}) has had a noticeable performance drop: slower response times, more errors, and “checked out” behavior.\n\n` +
+        `${emp.first} was previously a strong performer. Rumors suggest they’ve been picking up extra shifts and are exhausted.`;
+
+      const moreInfo =
+        `More Info:\n- ${emp.first} has worked multiple extra shifts recently.\n- Coworkers report ${emp.first} seems emotionally flat and irritable.\n- No safety event has occurred, but near-misses were verbally mentioned.\n- Manager wants a write-up “to send a message.”`;
+
+      const docs =
+        `Documentation:\n- Attendance is high (almost no call-outs).\n- Performance notes: a few recent minor errors.\n- No prior discipline on file.\n- EAP and wellness resources exist but are underused.`;
+
+      const witness =
+        `Witness Interview:\n- Coworker says ${emp.first} has been covering staffing gaps.\n- Charge nurse says errors are correctable but warns fatigue is becoming a safety risk.\n- ${emp.first} privately admits sleep is “wrecked.”`;
+
+      const choices = [
+        { label: "Performance coaching + supportive plan (EAP/resources) + workload review; document expectations",
+          outcome: () => ({
+            text:
+              `You address performance expectations clearly while building a supportive plan: workload review, resource referral, and check-ins.\n` +
+              `You document the plan and timeline.`,
+            delta: { morale:+3, complianceRisk:-2, turnoverRisk:-4, efficiency:-1, reputation:+3 }
+          })
+        },
+        { label: "Immediate corrective action (write-up) with minimal support",
+          outcome: () => ({
+            text:
+              `You issue corrective action fast. It signals standards — but you risk losing a previously strong employee and worsening burnout culture.`,
+            delta: { morale:-4, complianceRisk:+1, turnoverRisk:+6, efficiency:+1, reputation:-2 }
+          })
+        },
+        { label: "Ignore it; assume it will resolve when staffing improves",
+          outcome: () => ({
+            text:
+              `You delay action. Short-term conflict is avoided, but safety and performance risk quietly builds.`,
+            delta: { morale:-1, complianceRisk:+5, turnoverRisk:+2, efficiency:-1, reputation:-3 }
+          })
+        },
+        { label: "Partner with manager: temporary schedule relief + skills refresher + safety watch",
+          outcome: () => ({
+            text:
+              `You implement a short-term relief plan with refresher training and a safety watch.\n` +
+              `You protect patients and reduce burnout, but throughput dips briefly.`,
+            delta: { morale:+2, complianceRisk:-4, turnoverRisk:-3, efficiency:-2, reputation:+4 }
+          })
+        }
+      ];
+
+      return makeCase("Performance Drop Linked to Burnout", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    // 9) Team conflict / bullying gray-zone
+    function caseTeamFriction(){
+      const emp = genPerson();
+      const reporter = genPerson();
+      const sev = rnd(2,4);
+      const tags = ["Culture","Team Conflict","Retention"];
+      const base =
+        `${reporter.first} ${reporter.last} (${reporter.role}, ${reporter.unit}) reports ongoing team friction.\n\n` +
+        `${reporter.first} says ${emp.first} ${emp.last} (${emp.role}) is “not breaking policy,” but creates a hostile vibe: sarcasm, eye-rolling, shutting people down, and public criticism.\n\n` +
+        `Morale on the unit is sliding and newer staff are talking about transferring.`;
+
+      const moreInfo =
+        `More Info:\n- Multiple people describe similar behavior patterns.\n- ${emp.first} is technically competent and fast.\n- The unit is under stress; temp staff rotations are frequent.\n- Manager is reluctant to confront top performers.`;
+
+      const docs =
+        `Documentation:\n- No formal complaints previously.\n- Exit interview notes from another unit mention “culture issues” recently.\n- Policy requires respectful conduct but leaves gray areas.\n- Manager’s notes show coaching was attempted once, informally.`;
+
+      const witness =
+        `Witness Interview:\n- Witness A says ${emp.first} “humiliates people for being slow.”\n- Witness B says it’s not personal, it’s “how they talk.”\n- A new hire says they’re considering quitting if it continues.`;
+
+      const choices = [
+        { label: "Structured coaching plan for behavior + expectations + follow-up checkpoints; document",
+          outcome: () => ({
+            text:
+              `You define specific observable behaviors, set expectations, and build a coaching plan with follow-ups.\n` +
+              `You document it to prevent future “we never said that” chaos.`,
+            delta: { morale:+4, complianceRisk:-1, turnoverRisk:-4, efficiency:-1, reputation:+3 }
+          })
+        },
+        { label: "Move/transfer the complainer to another area to avoid conflict",
+          outcome: () => ({
+            text:
+              `You solve the immediate tension by moving the reporter. The unit reads it as “speak up and you get relocated.”`,
+            delta: { morale:-4, complianceRisk:+3, turnoverRisk:+5, efficiency:+1, reputation:-4 }
+          })
+        },
+        { label: "Formal corrective action for hostile behavior",
+          outcome: () => ({
+            text:
+              `You go formal. It can work if behavior is severe — but if documentation is thin, you risk pushback and grievance drama.`,
+            delta: { morale:-1, complianceRisk:-3, turnoverRisk:+1, efficiency:-2, reputation:+1 }
+          })
+        },
+        { label: "Facilitated team reset (norms, roles, conflict rules) + manager accountability",
+          outcome: () => ({
+            text:
+              `You run a team reset session and hold the manager accountable to enforce norms.\n` +
+              `It takes time, but stabilizes culture and reduces churn.`,
+            delta: { morale:+3, complianceRisk:-2, turnoverRisk:-3, efficiency:-2, reputation:+4 }
+          })
+        }
+      ];
+
+      return makeCase("Team Conflict and “Gray-Zone” Bullying", base, sev, tags, {moreInfo, docs, witness}, choices);
+    },
+
+    // 10) Ethics hotline report (unverified)
+    function caseEthicsHotline(){
+      const subject = genPerson();
+      const sev = rnd(3,5);
+      const tags = ["Ethics Hotline","Governance","High Uncertainty"];
+      const base =
+        `An anonymous ethics hotline report comes in.\n\n` +
+        `It alleges ${subject.first} ${subject.last} (${subject.role}, ${subject.unit}) is “doing something inappropriate” involving favoritism and possibly improper access to information.\n\n` +
+        `The report is vague: no dates, no patient names, no specific incident — but leadership is nervous and wants it “handled quietly.”`;
+
+      const moreInfo =
+        `More Info:\n- Report claims it’s been “going on for months.”\n- The unit has a tight-knit clique reputation.\n- Supervisor hints ${subject.first} is “important to operations.”\n- No prior complaints on file for ${subject.first}.`;
+
+      const docs =
+        `Documentation:\n- Audit logs are available but require privacy/compliance involvement.\n- Policy requires evaluation of hotline reports and documentation of disposition.\n- Past cases show anonymous reports are sometimes accurate, sometimes malicious.\n- No formal investigation exists yet.`;
+
+      const witness =
+        `Witness Interview:\n- A potential witness says “I don’t want my name involved.”\n- Another says they’ve heard rumors but never saw proof.\n- One staff member says leadership plays favorites openly.`;
+
+      const choices = [
+        { label: "Open a scoped investigation: define allegations, preserve logs, document steps; keep it need-to-know",
+          outcome: () => ({
+            text:
+              `You define the allegation scope, preserve audit logs, and document a proper intake and review path.\n` +
+              `You keep communication need-to-know to avoid rumor explosions.`,
+            delta: { morale:+1, complianceRisk:-9, turnoverRisk:-1, efficiency:-2, reputation:+4 }
+          })
+        },
+        { label: "Close it as “insufficient details” with minimal documentation",
+          outcome: () => ({
+            text:
+              `You close it quickly. If it was real, you just increased future liability and taught staff the hotline is pointless.`,
+            delta: { morale:-2, complianceRisk:+10, turnoverRisk:+2, efficiency:+2, reputation:-5 }
+          })
+        },
+        { label: "Quietly warn the subject without investigation",
+          outcome: () => ({
+            text:
+              `You give a quiet warning. If the report was malicious, you unfairly target the employee.\n` +
+              `If it was real, you tipped them off and may risk evidence integrity.`,
+            delta: { morale:-1, complianceRisk:+6, turnoverRisk:+1, efficiency:+1, reputation:-4 }
+          })
+        },
+        { label: "Escalate to compliance/legal channel for coordinated review (audit + HR + leadership guardrails)",
+          outcome: () => ({
+            text:
+              `You escalate to the proper channel and coordinate a review with guardrails.\n` +
+              `It’s slower — but dramatically cleaner if this turns out to be real.`,
+            delta: { morale:+0, complianceRisk:-10, turnoverRisk:-1, efficiency:-3, reputation:+3 }
+          })
+        }
+      ];
+
+      return makeCase("Anonymous Ethics Hotline Report", base, sev, tags, {moreInfo, docs, witness}, choices);
     }
   ];
 
-  function makeCase(title, baseText, severity, tags, info, choices){
-    return { id: Math.random().toString(36).slice(2), title, baseText, severity, tags, info, choices, resolved:false };
-  }
-
   function nextCase(){
     const risk = state.kpis.complianceRisk;
-    const wHigh = clamp((risk - 50) / 30, 0, 1);
+    const wHigh = clamp((risk - 50) / 30, 0, 1); // 0..1
+
+    // Weighted scenario selection.
+    // Higher compliance risk increases frequency of HIPAA + Ethics + Retaliation + Safety cases.
     const pickTemplate = weightedPick([
-      {v: templates[0], w: 22},
-      {v: templates[1], w: 18},
-      {v: templates[2], w: 14 + wHigh*10},
-      {v: templates[3], w: 16},
-      {v: templates[4], w: 18 + wHigh*6},
+      {v: templates[0], w: 18},                 // Conduct
+      {v: templates[1], w: 16},                 // Accommodation
+      {v: templates[2], w: 12 + wHigh*10},      // Retaliation
+      {v: templates[3], w: 14},                 // Hiring
+      {v: templates[4], w: 14 + wHigh*6},       // Safety/Efficiency
+      {v: templates[5], w: 14},                 // Payroll
+      {v: templates[6], w: 10 + wHigh*12},      // HIPAA
+      {v: templates[7], w: 14},                 // Burnout/Performance
+      {v: templates[8], w: 14},  // Team conflict
+      {v: templates[9], w: 8 + wHigh*14},       // Ethics hotline
     ]);
+
     state.activeCase = pickTemplate();
     state.caseKnowledge = { moreInfo:false, docs:false, witness:false };
     save();
@@ -730,7 +1030,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     return String(str).replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
   }
 
-  // ✅ FIX: build case body from knowledge flags so render() never nukes info
+  // build case body from knowledge flags so render() never nukes info
   function appendSection(base, sectionText){
     if (!sectionText) return base;
     if (!base) return sectionText;
@@ -824,7 +1124,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     $("caseSev").textContent = c.severity;
     $("caseTags").innerHTML = c.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
 
-    // ✅ FIXED: body persists based on flags
     $("caseBody").textContent = composeCaseBody(c);
 
     const infoDisabled = c.resolved || !canSpendTime();
@@ -958,7 +1257,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       $("setupToast").textContent = "Simulator reset.";
     });
 
-    // ✅ FIXED: info buttons only flip flags; render() composes body
     $("moreInfoBtn").addEventListener("click", () => {
       if (!state.activeCase || state.caseKnowledge.moreInfo || !canSpendTime()) return;
       spendTime(1);
