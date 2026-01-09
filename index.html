@@ -315,8 +315,11 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     return items[items.length-1].v;
   };
 
+  // ✅ structuredClone fallback (older browsers)
+  const sc = (obj) => (window.structuredClone ? structuredClone(obj) : JSON.parse(JSON.stringify(obj)));
+
   const STORAGE_KEY = "jaray_hr_sim_v1";
-  const MAX_TIME = 3; // Patch A: single source of truth
+  const MAX_TIME = 3; // single source of truth
 
   const defaultState = () => ({
     player: null,
@@ -325,7 +328,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     skills: { empathy:1, investigation:1, policy:1, influence:1 },
     kpis: { morale:50, complianceRisk:50, turnoverRisk:50, efficiency:50, reputation:50 },
     history: [],
-    lastOutcomeHtml: "", // Patch B: persist last outcome across renders
+    lastOutcomeHtml: "",
     activeCase: null,
     activeCaseStage: 0,
     caseKnowledge: { moreInfo:false, docs:false, witness:false }
@@ -711,20 +714,75 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     }
   ];
 
+  // ✅ Template -> KPI domain mapping (for adaptive case spawning)
+  const templateMeta = [
+    { idx: 0, name: "ConductComment",         domain: "morale"     },
+    { idx: 1, name: "SchedulingAccommodation",domain: "turnover"   },
+    { idx: 2, name: "RetaliationRumor",        domain: "compliance" },
+    { idx: 3, name: "HiringDecision",          domain: "efficiency" },
+    { idx: 4, name: "EfficiencyCornerCut",     domain: "efficiency" },
+  ];
+
   function makeCase(title, baseText, severity, tags, info, choices){
     return { id: Math.random().toString(36).slice(2), title, baseText, severity, tags, info, choices, resolved:false };
   }
 
+  // ✅ Build case body from gathered info so it persists across render()
+  function buildCaseBody(c){
+    let txt = c.baseText;
+    if (state.caseKnowledge.moreInfo) txt += "\n\n" + c.info.moreInfo;
+    if (state.caseKnowledge.docs)     txt += "\n\n" + c.info.docs;
+    if (state.caseKnowledge.witness)  txt += "\n\n" + c.info.witness;
+    return txt;
+  }
+
+  // ✅ KPI-adaptive case selection (reacts to ALL KPIs)
   function nextCase(){
-    const risk = state.kpis.complianceRisk;
-    const wHigh = clamp((risk - 50) / 30, 0, 1);
-    const pickTemplate = weightedPick([
-      {v: templates[0], w: 22},
-      {v: templates[1], w: 18},
-      {v: templates[2], w: 14 + wHigh*10},
-      {v: templates[3], w: 16},
-      {v: templates[4], w: 18 + wHigh*6},
-    ]);
+    const k = state.kpis;
+
+    // Pressure 0..1 (higher = more likely to spawn related cases)
+    const pMorale = clamp((50 - k.morale) / 35, 0, 1);
+    const pEff    = clamp((50 - k.efficiency) / 35, 0, 1);
+    const pRep    = clamp((50 - k.reputation) / 35, 0, 1);
+
+    const pComp   = clamp((k.complianceRisk - 50) / 35, 0, 1);
+    const pTurn   = clamp((k.turnoverRisk - 50) / 35, 0, 1);
+
+    const baseWeights = [ 20, 16, 14, 16, 18 ];
+
+    const weights = baseWeights.map((w, i) => {
+      const dom = templateMeta[i]?.domain;
+      let boost = 0;
+
+      if (dom === "morale") {
+        boost += pMorale * 14;
+        boost += pTurn * 4;
+      }
+
+      if (dom === "turnover") {
+        boost += pTurn * 16;
+        boost += pMorale * 5;
+      }
+
+      if (dom === "compliance") {
+        boost += pComp * 20;
+        boost += pRep * 8;
+      }
+
+      if (dom === "efficiency") {
+        boost += pEff * 18;
+        boost += pComp * 6;
+      }
+
+      const overallChaos = clamp((pMorale + pEff + pRep + pComp + pTurn) / 2.8, 0, 1);
+      boost += overallChaos * 2;
+
+      return w + boost;
+    });
+
+    const picker = templates.map((fn, i) => ({ v: fn, w: weights[i] }));
+    const pickTemplate = weightedPick(picker);
+
     state.activeCase = pickTemplate();
     state.activeCaseStage = 0;
     state.caseKnowledge = { moreInfo:false, docs:false, witness:false };
@@ -767,14 +825,14 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
     let out = choice.outcome({ knowledgeBonus, skills: state.skills, kpis: state.kpis });
 
     if (knowledgeBonus >= 2){
-      out = structuredClone(out);
-      out.delta = structuredClone(out.delta);
+      out = sc(out);
+      out.delta = sc(out.delta || {});
       out.delta.complianceRisk = (out.delta.complianceRisk || 0) - 1;
       out.delta.reputation = (out.delta.reputation || 0) + 1;
       out.text += `\n\nBecause you gathered solid information first, your documentation is cleaner and leadership pushback is lower.`;
     } else if (knowledgeBonus === 0 && c.severity >= 4){
-      out = structuredClone(out);
-      out.delta = structuredClone(out.delta);
+      out = sc(out);
+      out.delta = sc(out.delta || {});
       out.delta.complianceRisk = (out.delta.complianceRisk || 0) + 2;
       out.delta.reputation = (out.delta.reputation || 0) - 1;
       out.text += `\n\nYou acted with limited facts on a high-stakes case. Even if your intent is good, that increases risk.`;
@@ -791,7 +849,7 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       tags: c.tags,
       choice: choice.label,
       delta: out.delta || {},
-      knowledge: structuredClone(state.caseKnowledge)
+      knowledge: sc(state.caseKnowledge)
     });
     state.history = state.history.slice(0, 20);
 
@@ -900,8 +958,26 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
 
     $("caseTitle").textContent = c.title;
     $("caseSev").textContent = c.severity;
+
+    // Base tags
     $("caseTags").innerHTML = c.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
-    $("caseBody").textContent = c.baseText;
+
+    // ✅ Optional: "Driver" tag (why this case is showing up now)
+    const k = state.kpis;
+    const pressures = [
+      { label:"Morale",     v: clamp((50 - k.morale)/35,0,1) },
+      { label:"Efficiency", v: clamp((50 - k.efficiency)/35,0,1) },
+      { label:"Reputation", v: clamp((50 - k.reputation)/35,0,1) },
+      { label:"Compliance", v: clamp((k.complianceRisk - 50)/35,0,1) },
+      { label:"Turnover",   v: clamp((k.turnoverRisk - 50)/35,0,1) },
+    ].sort((a,b)=>b.v-a.v);
+
+    if (pressures[0].v >= 0.45){
+      $("caseTags").insertAdjacentHTML("beforeend", `<span class="tag">Driver: ${escapeHtml(pressures[0].label)} pressure</span>`);
+    }
+
+    // ✅ Persisted case body (includes gathered info)
+    $("caseBody").textContent = buildCaseBody(c);
 
     const infoDisabled = c.resolved || !canSpendTime();
     $("moreInfoBtn").disabled = infoDisabled || state.caseKnowledge.moreInfo;
@@ -982,12 +1058,11 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       }
 
       nextCase();
-      state.lastOutcomeHtml = ""; // Patch B: clear outcome for new case
+      state.lastOutcomeHtml = "";
       save();
       render();
     });
 
-    // ✅ New improvement: unresolved case prompt + carry over option
     $("endDayBtn").addEventListener("click", () => {
       const k = state.kpis;
 
@@ -1005,7 +1080,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
         );
 
         if (!carryOver) {
-          // small realism consequence for dropping it
           applyDelta({ reputation:-1, complianceRisk:+1 });
         }
       }
@@ -1014,11 +1088,9 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       state.timeLeft = MAX_TIME;
 
       if (hasUnresolved && carryOver) {
-        // Keep the case + gathered info
         state.lastOutcomeHtml = "";
         toast("New day started. Case carried over — finish it today.");
       } else {
-        // Clear as usual
         state.activeCase = null;
         state.caseKnowledge = { moreInfo:false, docs:false, witness:false };
         state.lastOutcomeHtml = "";
@@ -1047,11 +1119,12 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       $("setupToast").textContent = "Simulator reset.";
     });
 
+    // ✅ Info buttons now only toggle knowledge + spend time.
+    // buildCaseBody() in renderCase() handles the text persistently.
     $("moreInfoBtn").addEventListener("click", () => {
       if (!state.activeCase || state.caseKnowledge.moreInfo || !canSpendTime()) return;
       spendTime(1);
       state.caseKnowledge.moreInfo = true;
-      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.moreInfo;
       save(); render();
     });
 
@@ -1059,7 +1132,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       if (!state.activeCase || state.caseKnowledge.docs || !canSpendTime()) return;
       spendTime(1);
       state.caseKnowledge.docs = true;
-      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.docs;
       save(); render();
     });
 
@@ -1067,7 +1139,6 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       if (!state.activeCase || state.caseKnowledge.witness || !canSpendTime()) return;
       spendTime(1);
       state.caseKnowledge.witness = true;
-      $("caseBody").textContent = state.activeCase.baseText + "\n\n" + state.activeCase.info.witness;
       save(); render();
     });
   }
@@ -1086,6 +1157,8 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
       // Safe defaults for older saves
       if (typeof parsed.lastOutcomeHtml !== "string") parsed.lastOutcomeHtml = "";
       if (typeof parsed.timeLeft !== "number") parsed.timeLeft = MAX_TIME;
+      parsed.timeLeft = clamp(parsed.timeLeft, 0, MAX_TIME); // ✅ clamp to new MAX_TIME
+
       if (!parsed.caseKnowledge) parsed.caseKnowledge = { moreInfo:false, docs:false, witness:false };
       if (!parsed.skills) parsed.skills = { empathy:1, investigation:1, policy:1, influence:1 };
       if (!parsed.kpis) parsed.kpis = { morale:50, complianceRisk:50, turnoverRisk:50, efficiency:50, reputation:50 };
