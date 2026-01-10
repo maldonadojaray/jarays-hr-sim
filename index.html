@@ -918,6 +918,7 @@ function terminatePerson(personId){
     const subject = genPerson({ preferId: subjectId });
 
     const baseTags = ["Follow-up", `Thread:${tid}`];
+    const seedTags = Array.isArray(seedCase?.tags) ? seedCase.tags : [];
     const sev = clamp(seedCase.severity + rnd(0,1), 2, 5);
 
     const pm = resolution.policyMatch || {match:0, requiredCount:0};
@@ -983,7 +984,7 @@ Leadership wants HR to respond with documentation, rationale, and policy alignme
       return makeCase({
         title:"Follow-up: Termination Appeal / Grievance",
         severity: 4,
-        tags:[...((seedCase.tags)||[]), ...baseTags, "Termination", "Grievance"],
+        tags:[...((seedTags)||[]), ...baseTags, "Termination", "Grievance"],
         baseText: base,
         variables:{ ...seedCase.variables },
         info,
@@ -1046,7 +1047,7 @@ Leadership wants a written response and a clear next step.${commonFooter}`;
       return makeCase({
         title:"Follow-up: Formal Grievance Filed",
         severity: sev,
-        tags:[...seedCase.tags, ...baseTags],
+        tags:[...seedTags, ...baseTags],
         baseText: base,
         variables:{ ...seedCase.variables, subjectId: subject.id },
         info,
@@ -1109,7 +1110,7 @@ They request your case file: timeline, notes, policy rationale, and any interim 
       return makeCase({
         title:"Follow-up: Compliance Review Triggered",
         severity: clamp(sev+1,2,5),
-        tags:[...seedCase.tags, ...baseTags],
+        tags:[...seedTags, ...baseTags],
         baseText: base,
         variables:{ ...seedCase.variables, subjectId: subject.id },
         info,
@@ -1169,7 +1170,7 @@ This may require formal incident handling and communication coordination.${commo
       return makeCase({
         title:"Follow-up: Patient Privacy Complaint",
         severity: 5,
-        tags:[...seedCase.tags, ...baseTags, "Patient Relations"],
+        tags:[...seedTags, ...baseTags, "Patient Relations"],
         baseText: base,
         variables:{ ...seedCase.variables, subjectId: subject.id },
         info,
@@ -1229,7 +1230,7 @@ Payroll leadership asks HR for process direction and documentation support.${com
       return makeCase({
         title:"Follow-up: Wage Claim Threatened",
         severity: clamp(sev+1,3,5),
-        tags:[...seedCase.tags, ...baseTags, "Escalation"],
+        tags:[...seedTags, ...baseTags, "Escalation"],
         baseText: base,
         variables:{ ...seedCase.variables, subjectId: subject.id },
         info,
@@ -1283,7 +1284,7 @@ Leadership asks HR: “Is this connected to the prior situation?”${commonFoote
       return makeCase({
         title:"Follow-up: Exit/Transfer Driven by Culture",
         severity: clamp(sev,2,5),
-        tags:[...seedCase.tags, ...baseTags, "Retention"],
+        tags:[...seedTags, ...baseTags, "Retention"],
         baseText: base,
         variables:{ ...seedCase.variables, subjectId: subject.id },
         info,
@@ -1344,7 +1345,7 @@ created an unsafe situation. Leadership wants immediate HR involvement.${commonF
     return makeCase({
       title:"Follow-up: Safety Event / Near-Miss Escalation",
       severity: 5,
-      tags:[...seedCase.tags, ...baseTags, "Safety"],
+      tags:[...seedTags, ...baseTags, "Safety"],
       baseText: base,
       variables:{ ...seedCase.variables, subjectId: subject.id },
       info,
@@ -2151,6 +2152,7 @@ Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Prio
     applyDelta(outDelta);
     // --- roster effects (hire/terminate) ---
 const effects = choice.effects || null;
+let skipRandomFollowUp = false;
 
 // Hiring: add employee to roster
 if (effects && effects.hire){
@@ -2160,6 +2162,8 @@ if (effects && effects.hire){
 
 // Termination: remove employee from roster + queue termination appeal follow-up
 if (effects && effects.terminate){
+  skipRandomFollowUp = true;
+
   const removed = terminatePerson(effects.terminate.personId);
   if (removed){
     outText += `\n\nTermination executed: ${removed.name} has been removed from the staff roster.`;
@@ -2244,7 +2248,15 @@ if (effects && effects.terminate){
     Store.markDirty();
 
     // follow-ups
-    spawnFollowUpIfNeeded(c, {
+    if (!skipRandomFollowUp){
+  spawnFollowUpIfNeeded(c, {
+    delta: outDelta || {},
+    infoBonus,
+    policyMatch: pm,
+    choiceLabel: choice.label
+  });
+}
+
       delta: outDelta || {},
       infoBonus,
       policyMatch: pm,
