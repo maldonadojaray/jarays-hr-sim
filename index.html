@@ -1357,6 +1357,10 @@ created an unsafe situation. Leadership wants immediate HR involvement.${commonF
 
   // ---------- follow-up probability ----------
   function spawnFollowUpIfNeeded(seed, resolution){
+      // Prevent follow-up recursion: follow-ups should not spawn more follow-ups
+  if (seed && seed.followUpType) return;
+  if (seed && Array.isArray(seed.tags) && seed.tags.includes("Follow-up")) return;
+
     const s = Store.state;
     const c = seed;
     const k = s.kpis;
