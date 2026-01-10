@@ -1902,10 +1902,8 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
         variables:{ subjectId: subject.id, ...v },
         info, choices, requiredPolicies:["HOTLINE_INTAKE"]
       });
-    }
-  ];
-
-  function tTermination(){
+    },
+    function tTermination(){
   ensureRoster();
   const s = Store.state;
 
@@ -1969,6 +1967,9 @@ Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Prio
     requiredPolicies:["CORRECTIVE_ACTION"]
   });
 }
+  ];
+
+  
 
   // ---------- mechanics ----------
   function canSpendTime(){ return Store.state.timeLeft > 0; }
@@ -2100,7 +2101,7 @@ Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Prio
       { v: templates[7], w: 12 + wTurn*6 },
       { v: templates[8], w: 12 + wTurn*8 },
       { v: templates[9], w: 8 + wHigh*14 },
-      { v: tTermination, w: 6 + wHigh*8 },
+      { v: templates[10], w: 6 + wHigh*8 },
     ]);
 
     s.activeCase = pickTemplate();
