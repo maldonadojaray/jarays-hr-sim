@@ -495,6 +495,18 @@ Required steps:
 - Define allegation clearly (who/what/when/how).
 - Preserve logs, limit disclosure (need-to-know).
 - Document decision path even if closed.`},
+
+    { id:"HIRING_SELECTION", title:"Hiring & Selection — Consistent Criteria / Documentation", tags:["Hiring","Selection","Compliance"], body:
+`Core rule:
+- Use consistent, job-related selection criteria.
+- Avoid favoritism and document decision rationale.
+
+Required steps:
+- Define criteria (skills, reliability, fit, schedule needs) before choosing.
+- Use structured notes (panel feedback, references) consistently for candidates.
+- Document why the selected candidate best meets the role and how risks were mitigated.`},
+
+    
     { id:"CORRECTIVE_ACTION", title:"Corrective Action & Documentation Standards", tags:["Performance","Discipline"], body:
 `Core rule:
 - Use progressive discipline where appropriate.
@@ -1468,6 +1480,9 @@ created an unsafe situation. Leadership wants immediate HR involvement.${commonF
     if (tagSet.has("Safety") || tagSet.has("Efficiency")){
       options.push({ v:"SAFETY_EVENT", w: 14 + (riskUp?8:0) });
     }
+    if (tagSet.has("Hiring") || tagSet.has("Selection")){
+  options.push({ v:"COMPLIANCE_REVIEW", w: 10 + (riskUp?6:0) + (poorPolicy?8:0) });
+    }
 
     const chosen = (options.length ? weightedPick(options) : "COMPLIANCE_REVIEW");
     const follow = buildFollowUpCase(chosen, tid, c, resolution);
@@ -1680,7 +1695,7 @@ Leadership pressure: ${v.leadershipPressure}/5 • Reference strength: ${v.evide
     severity:v.severity, tags, baseText: base,
     variables:{ vacancyRole, vacancyUnit, vacancyShift, ...v },
     info, choices,
-    requiredPolicies:["CORRECTIVE_ACTION"]
+    requiredPolicies:["HIRING_SELECTION"]
   });
 },
 
