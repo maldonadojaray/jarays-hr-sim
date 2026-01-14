@@ -2388,50 +2388,46 @@ if (effects && effects.terminate){
 }
 
   function openPolicyBinder(){
+  const s = Store.state;
+  const c = s.activeCase;
+  if (!c) return;
 
-$("policyHint").textContent =
-  `Recommended: ${requiredTitles.length ? requiredTitles.join(" • ") : "None"} ` +
-  `• Attached: ${(s.caseKnowledge.attachedPolicies || []).length}`;
-}
-    const s = Store.state;
-    const c = s.activeCase;
-    if (!c) return;
+  const required = new Set(c.requiredPolicies || []);
+  const attached = new Set(s.caseKnowledge.attachedPolicies || []);
 
-    const required = new Set(c.requiredPolicies || []);
-    const attached = new Set(s.caseKnowledge.attachedPolicies || []);
+  refreshPolicyHint();
 
-    
-   refreshPolicyHint();
-    const list = $("policyList");
-    list.innerHTML = "";
+  const list = $("policyList");
+  list.innerHTML = "";
 
-    for (const p of POLICIES){
-      const isAttached = attached.has(p.id);
-      const isRequired = required.has(p.id);
+  for (const p of POLICIES){
+    const isAttached = attached.has(p.id);
+    const isRequired = required.has(p.id);
 
-      const card = document.createElement("div");
-      card.className = "policyCard" + (isAttached ? " attached" : "");
-card.dataset.pid = p.id;
+    const card = document.createElement("div");
+    card.className = "policyCard" + (isAttached ? " attached" : "");
+    card.dataset.pid = p.id;
 
-      card.innerHTML = `
-        <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start">
-          <div>
-            <div class="policyTitle">${escapeHtml(p.title)}</div>
-            <div class="policyMeta">ID: <span class="mono">${escapeHtml(p.id)}</span> • Tags: ${escapeHtml((p.tags||[]).join(", "))}${isRequired ? " • ✅ Recommended" : ""}</div>
-          </div>
-          <div class="btnrow">
-            <button type="button" class="${isAttached ? "" : "good"}" data-id="${escapeHtml(p.id)}" data-act="toggle">
-              ${isAttached ? "Detach" : "Attach"}
-            </button>
-          </div>
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start">
+        <div>
+          <div class="policyTitle">${escapeHtml(p.title)}</div>
+          <div class="policyMeta">ID: <span class="mono">${escapeHtml(p.id)}</span> • Tags: ${escapeHtml((p.tags||[]).join(", "))}${isRequired ? " • ✅ Recommended" : ""}</div>
         </div>
-        <div class="policyBody">${escapeHtml(p.body)}</div>
-      `;
-      list.appendChild(card);
-    }
-
-    $("policyOverlay").style.display = "flex";
+        <div class="btnrow">
+          <button type="button" class="${isAttached ? "" : "good"}" data-id="${escapeHtml(p.id)}" data-act="toggle">
+            ${isAttached ? "Detach" : "Attach"}
+          </button>
+        </div>
+      </div>
+      <div class="policyBody">${escapeHtml(p.body)}</div>
+    `;
+    list.appendChild(card);
   }
+
+  $("policyOverlay").style.display = "flex";
+}
+
   function closePolicyBinder(){ $("policyOverlay").style.display = "none"; }
 
   // ---------- UI: render ----------
