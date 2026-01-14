@@ -2437,17 +2437,17 @@ if (effects && effects.terminate){
   }
 
   function renderCase(){
-    const s = Store.state;
-    $("outcomeText").innerHTML = s.lastOutcomeHtml || "";
-// Show case file quality (if there is an active case)
-if (s.activeCase){
-  const q = caseFileQuality(s.activeCase);
-  $("caseQualityText").textContent = q.text;
-} else {
-  $("caseQualityText").textContent = "";
-}
+  const s = Store.state;
+  const c = s.activeCase;
 
-    const c = s.activeCase;
+  $("outcomeText").innerHTML = s.lastOutcomeHtml || "";
+
+  if (c){
+    const q = caseFileQuality(c);
+    $("caseQualityText").textContent = q.text;
+  } else {
+    $("caseQualityText").textContent = "";
+  }
     if (!c){
       $("caseTitle").textContent = "Press “Get Next Case”";
       $("caseSev").textContent = "—";
