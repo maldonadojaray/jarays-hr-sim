@@ -1962,13 +1962,6 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
   ensureRoster();
   const s = Store.state;
 
-  // --- PROTECTION: don't pick Unit Manager or Physician ---
-  const protectedRoles = new Set(["Unit Manager","Physician"]);
-  let pool = (s.roster || []).filter(p => !protectedRoles.has(p.role));
-
-  // If roster is small or somehow all protected, fall back safely to whole roster
-  if (!pool.length) pool = (s.roster || []).slice();
-
   const person = pickTerminableEmployee();
 
   const v = genVars({minSev:3,maxSev:5});
