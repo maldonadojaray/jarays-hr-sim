@@ -1934,6 +1934,27 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
         info, choices, requiredPolicies:["HOTLINE_INTAKE"]
       });
     },
+    function pickTerminableEmployee(){
+  ensureRoster();
+  const s = Store.state;
+
+  const protectedRoles = new Set(["Unit Manager","Physician"]);
+  const pool = (s.roster || []).filter(p => !protectedRoles.has(p.role));
+
+  // If pool is empty, create a safe temp employee so termination still works
+  if (!pool.length){
+    const temp = hirePerson({
+      name: `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`,
+      role: weightedPick(ROLE_POOL),
+      unit: pick(UNITS),
+      shift: pick(["Days","Nights"])
+    });
+    return temp;
+  }
+
+  return pick(pool);
+},
+
     function tTermination(){
   ensureRoster();
   const s = Store.state;
@@ -1945,7 +1966,7 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
   // If roster is small or somehow all protected, fall back safely to whole roster
   if (!pool.length) pool = (s.roster || []).slice();
 
-  const person = pick(pool);
+  const person = pickTerminableEmployee();
 
   const v = genVars({minSev:3,maxSev:5});
   const tags = ["Termination","Corrective Action","Risk"];
@@ -2353,6 +2374,20 @@ if (effects && effects.terminate){
 
   // ---------- UI: policy binder ----------
   function openPolicyBinder(){
+    function refreshPolicyHint(){
+  const s = Store.state;
+  const c = s.activeCase;
+  if (!c) return;
+
+  const requiredTitles = (c.requiredPolicies || []).map(id => {
+  const p = POLICIES.find(x => x.id === id);
+  return p ? p.title : id;
+});
+
+$("policyHint").textContent =
+  `Recommended: ${requiredTitles.length ? requiredTitles.join(" • ") : "None"} ` +
+  `• Attached: ${(s.caseKnowledge.attachedPolicies || []).length}`;
+}
     const s = Store.state;
     const c = s.activeCase;
     if (!c) return;
@@ -2360,6 +2395,7 @@ if (effects && effects.terminate){
     const required = new Set(c.requiredPolicies || []);
     const attached = new Set(s.caseKnowledge.attachedPolicies || []);
 
+    
     $("policyHint").textContent =
       `This case expects: ${c.requiredPolicies?.length ? c.requiredPolicies.join(", ") : "No specific policy required."} ` +
       `• Attached: ${s.caseKnowledge.attachedPolicies.length}`;
@@ -2373,6 +2409,8 @@ if (effects && effects.terminate){
 
       const card = document.createElement("div");
       card.className = "policyCard" + (isAttached ? " attached" : "");
+card.dataset.pid = p.id;
+
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start">
           <div>
@@ -2784,20 +2822,40 @@ if (effects && effects.terminate){
 
     // Policy binder event delegation
     $("policyList").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-act='toggle']");
-      if (!btn) return;
-      const s = Store.state;
-      const id = btn.getAttribute("data-id");
-      if (!id) return;
-      const arr = s.caseKnowledge.attachedPolicies || [];
-      const idx = arr.indexOf(id);
-      if (idx >= 0) arr.splice(idx, 1);
-      else arr.push(id);
-      s.caseKnowledge.attachedPolicies = arr;
-      Store.markDirty();
-      openPolicyBinder();
-      afterStateChange();
-    });
+  const btn = e.target.closest("button[data-act='toggle']");
+  if (!btn) return;
+
+  const s = Store.state;
+  const id = btn.getAttribute("data-id");
+  if (!id) return;
+
+  const arr = s.caseKnowledge.attachedPolicies || [];
+  const idx = arr.indexOf(id);
+
+  const isNowAttached = (idx === -1);
+  if (isNowAttached) arr.push(id);
+  else arr.splice(idx, 1);
+
+  s.caseKnowledge.attachedPolicies = arr;
+  Store.markDirty();
+
+  // Update just this card visually
+  const card = btn.closest(".policyCard");
+  if (card){
+    card.classList.toggle("attached", isNowAttached);
+  }
+
+  // Update button label + style
+  btn.textContent = isNowAttached ? "Detach" : "Attach";
+  btn.classList.toggle("good", !isNowAttached);
+
+  // Update hint line (top of modal)
+  refreshPolicyHint();
+
+  // Update case quality + UI normally
+  afterStateChange();
+});
+
 
     $("gameOverResetBtn").addEventListener("click", () => {
       Store.wipe();
