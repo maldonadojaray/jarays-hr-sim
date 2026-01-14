@@ -1960,8 +1960,6 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
 
     function tTermination(){
   ensureRoster();
-  const s = Store.state;
-
   const person = pickTerminableEmployee();
 
   const v = genVars({minSev:3,maxSev:5});
