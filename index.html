@@ -726,11 +726,14 @@ Required steps:
   const protectedRoles = new Set(["Unit Manager","Physician"]);
   const pool = (s.roster || []).filter(p => !protectedRoles.has(p.role));
 
-  // If pool is empty, create a safe employee so termination still works
+  // Only roles that are allowed to be terminated
+  const safeRolePool = ROLE_POOL.filter(r => !protectedRoles.has(r.v));
+
+  // If pool is empty, hire a NON-protected employee so termination still works
   if (!pool.length){
     return hirePerson({
       name: `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`,
-      role: weightedPick(ROLE_POOL),
+      role: weightedPick(safeRolePool.length ? safeRolePool : ROLE_POOL),
       unit: pick(UNITS),
       shift: pick(["Days","Nights"])
     });
@@ -738,6 +741,7 @@ Required steps:
 
   return pick(pool);
 }
+
 function hirePerson({ name, role, unit, shift }){
   const s = Store.state;
   ensureRoster();
