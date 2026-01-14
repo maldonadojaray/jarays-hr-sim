@@ -719,6 +719,25 @@ Required steps:
       Store.markDirty();
     }
   }
+  function pickTerminableEmployee(){
+  ensureRoster();
+  const s = Store.state;
+
+  const protectedRoles = new Set(["Unit Manager","Physician"]);
+  const pool = (s.roster || []).filter(p => !protectedRoles.has(p.role));
+
+  // If pool is empty, create a safe employee so termination still works
+  if (!pool.length){
+    return hirePerson({
+      name: `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`,
+      role: weightedPick(ROLE_POOL),
+      unit: pick(UNITS),
+      shift: pick(["Days","Nights"])
+    });
+  }
+
+  return pick(pool);
+}
 function hirePerson({ name, role, unit, shift }){
   const s = Store.state;
   ensureRoster();
@@ -1934,26 +1953,6 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
         info, choices, requiredPolicies:["HOTLINE_INTAKE"]
       });
     },
-    function pickTerminableEmployee(){
-  ensureRoster();
-  const s = Store.state;
-
-  const protectedRoles = new Set(["Unit Manager","Physician"]);
-  const pool = (s.roster || []).filter(p => !protectedRoles.has(p.role));
-
-  // If pool is empty, create a safe temp employee so termination still works
-  if (!pool.length){
-    const temp = hirePerson({
-      name: `${pick(NAME_FIRST)} ${pick(NAME_LAST)}`,
-      role: weightedPick(ROLE_POOL),
-      unit: pick(UNITS),
-      shift: pick(["Days","Nights"])
-    });
-    return temp;
-  }
-
-  return pick(pool);
-},
 
     function tTermination(){
   ensureRoster();
@@ -2373,16 +2372,22 @@ if (effects && effects.terminate){
   }
 
   // ---------- UI: policy binder ----------
-  function openPolicyBinder(){
-    function refreshPolicyHint(){
+  function refreshPolicyHint(){
   const s = Store.state;
   const c = s.activeCase;
   if (!c) return;
 
   const requiredTitles = (c.requiredPolicies || []).map(id => {
-  const p = POLICIES.find(x => x.id === id);
-  return p ? p.title : id;
-});
+    const p = POLICIES.find(x => x.id === id);
+    return p ? p.title : id;
+  });
+
+  $("policyHint").textContent =
+    `Recommended: ${requiredTitles.length ? requiredTitles.join(" • ") : "None"} ` +
+    `• Attached: ${(s.caseKnowledge.attachedPolicies || []).length}`;
+}
+
+  function openPolicyBinder(){
 
 $("policyHint").textContent =
   `Recommended: ${requiredTitles.length ? requiredTitles.join(" • ") : "None"} ` +
@@ -2396,10 +2401,7 @@ $("policyHint").textContent =
     const attached = new Set(s.caseKnowledge.attachedPolicies || []);
 
     
-    $("policyHint").textContent =
-      `This case expects: ${c.requiredPolicies?.length ? c.requiredPolicies.join(", ") : "No specific policy required."} ` +
-      `• Attached: ${s.caseKnowledge.attachedPolicies.length}`;
-
+   refreshPolicyHint();
     const list = $("policyList");
     list.innerHTML = "";
 
