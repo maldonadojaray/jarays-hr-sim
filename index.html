@@ -351,7 +351,10 @@ Choose a case to begin. Your goal is to keep Morale high while lowering Complian
         <div class="btnrow" id="choiceBtns"></div>
 
         <div class="divider"></div>
-        <div class="small" id="outcomeText"></div>
+        <div class="small muted" id="caseQualityText"></div>
+<div class="divider"></div>
+<div class="small" id="outcomeText"></div>
+
       </div>
     </div>
   </div>
@@ -902,6 +905,34 @@ function terminatePerson(personId){
     for (const a of attached) if (!required.has(a)) wrong++;
     return { match, wrong, requiredCount: required.size };
   }
+
+function caseFileQuality(c){
+  // Quality is a simple 0–10 score that rewards:
+  // - gathering info
+  // - attaching correct policies
+  // and lightly punishes attaching irrelevant policies
+
+  if (!c) return { score: 0, text: "Case File Quality: —" };
+
+  const infoBonus = computeInfoBonus();          // 0–5
+  const pm = policyMatchScore(c);                // match/wrong/requiredCount
+
+  // Start with info gathered
+  let score = infoBonus;                         // 0–5
+
+  // Reward correct policies (max +3)
+  score += Math.min(3, pm.match);
+
+  // Small penalty for irrelevant policies (max -2)
+  score -= Math.min(2, pm.wrong);
+
+  score = clamp(score, 0, 10);
+
+  return {
+    score,
+    text: `Case File Quality: ${score}/10 (Info ${infoBonus}/5 • Policy ${pm.match}/${pm.requiredCount || 0})`
+  };
+}
 
   function threadPeople(tid){
     const t = Store.state.threads[tid];
@@ -2134,6 +2165,19 @@ Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Prio
       outDelta.reputation = (outDelta.reputation || 0) - 1;
       outText += `\n\nYou acted with limited facts on a high-severity case. Even good intent becomes messy risk.`;
     }
+// Time pressure penalty: if you ran out of time, decisions are messier
+if (s.timeLeft === 0){
+  outDelta.complianceRisk = (outDelta.complianceRisk || 0) + 2;
+  outDelta.reputation = (outDelta.reputation || 0) - 1;
+
+  // High severity cases get an extra sting
+  if (c.severity >= 4){
+    outDelta.morale = (outDelta.morale || 0) - 1;
+    outText += `\n\nTime pressure: You ran out of time on a high-severity case. The rushed handling hurt morale and increased risk.`;
+  } else {
+    outText += `\n\nTime pressure: You ran out of time. The rushed handling increased compliance risk.`;
+  }
+}
 
     // Policy match modifiers
     if (pm.requiredCount > 0){
@@ -2395,6 +2439,13 @@ if (effects && effects.terminate){
   function renderCase(){
     const s = Store.state;
     $("outcomeText").innerHTML = s.lastOutcomeHtml || "";
+// Show case file quality (if there is an active case)
+if (s.activeCase){
+  const q = caseFileQuality(s.activeCase);
+  $("caseQualityText").textContent = q.text;
+} else {
+  $("caseQualityText").textContent = "";
+}
 
     const c = s.activeCase;
     if (!c){
