@@ -506,7 +506,47 @@ Required steps:
 - Use structured notes (panel feedback, references) consistently for candidates.
 - Document why the selected candidate best meets the role and how risks were mitigated.`},
 
-    
+    // --- NEW POLICIES (add inside POLICIES array) ---
+{ id:"CONFLICT_OF_INTEREST", title:"Conflict of Interest & Relationships (Supervisor/Subordinate)", tags:["Ethics","Conduct"], body:
+`Core rule:
+- Supervisor/subordinate romantic relationships create power imbalance risk.
+- Require disclosure; assess reporting lines and perceived favoritism.
+
+Required steps:
+- Document disclosure and risk assessment.
+- Implement mitigation (reassignment, reporting change, boundaries).
+- Monitor for retaliation or favoritism complaints.`},
+
+{ id:"CREDENTIALING_COMPLIANCE", title:"Credentialing / License / I-9 Documentation Compliance", tags:["Compliance","Audit"], body:
+`Core rule:
+- Staff working without required documentation/credentials is high risk.
+- Correct immediately; restrict duties if necessary.
+
+Required steps:
+- Verify expiration/missing docs and responsible owner.
+- Remove from schedule/clinical duties if needed until fixed.
+- Document corrective action + systemic prevention (alerts, checklists).`},
+
+{ id:"SOCIAL_MEDIA", title:"Social Media, Confidentiality, and Reputation Standards", tags:["Reputation","Conduct"], body:
+`Core rule:
+- No disclosure of confidential patient or internal sensitive info.
+- Off-duty posts can still harm reputation and violate policy.
+
+Required steps:
+- Preserve evidence (screenshots) and verify authorship.
+- Assess confidentiality/HIPAA overlap.
+- Coach or discipline proportionate to severity; document.`},
+
+{ id:"LABOR_RELATIONS", title:"Protected Concerted Activity & Non-Retaliation (Labor Relations)", tags:["Labor","Retaliation"], body:
+`Core rule:
+- Employees may discuss pay/conditions and organize; retaliation is prohibited.
+- Management responses must be neutral and policy-driven.
+
+Required steps:
+- Coach leaders on do/don't.
+- Document neutral guidance and avoid surveillance/interference.
+- Escalate to legal/employee relations for sensitive situations.`},
+
     { id:"CORRECTIVE_ACTION", title:"Corrective Action & Documentation Standards", tags:["Performance","Discipline"], body:
 `Core rule:
 - Use progressive discipline where appropriate.
@@ -1480,6 +1520,22 @@ created an unsafe situation. Leadership wants immediate HR involvement.${commonF
     if (tagSet.has("Safety") || tagSet.has("Efficiency")){
       options.push({ v:"SAFETY_EVENT", w: 14 + (riskUp?8:0) });
     }
+    // Reputation / Social media can trigger compliance review or grievance
+if (tagSet.has("Reputation")){
+  options.push({ v:"COMPLIANCE_REVIEW", w: 10 + (riskUp?6:0) });
+  options.push({ v:"GRIEVANCE", w: 8 + (repDown?6:0) });
+}
+
+// Audit/credential issues skew toward compliance review
+if (tagSet.has("Audit")){
+  options.push({ v:"COMPLIANCE_REVIEW", w: 16 + (actedBlindOnHighSev?8:0) });
+}
+
+// Labor relations mishandling often triggers grievance/compliance
+if (tagSet.has("Labor Relations")){
+  options.push({ v:"GRIEVANCE", w: 14 + (repDown?6:0) });
+  options.push({ v:"COMPLIANCE_REVIEW", w: 12 + (riskUp?8:0) });
+}
     if (tagSet.has("Hiring") || tagSet.has("Selection")){
   options.push({ v:"COMPLIANCE_REVIEW", w: 10 + (riskUp?6:0) + (poorPolicy?8:0) });
     }
@@ -1972,6 +2028,563 @@ Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
         info, choices, requiredPolicies:["HOTLINE_INTAKE"]
       });
     },
+// 12) Manager Dating a Direct Report
+function tRelationshipCOI(){
+  const mgr = genPerson({ preferRole:"Unit Manager" });
+  const direct = genPerson({ preferUnit: mgr.unit });
+  const reporter = genPerson({ preferUnit: mgr.unit });
+  const v = genVars({ minSev:3, maxSev:5 });
+  const tags = ["Conduct","Culture","Ethics","Leadership","Conflict of Interest"];
+
+  const base =
+`Rumor report: possible supervisor/subordinate relationship.
+
+${reporter.name} reports that Manager ${mgr.name} (${mgr.unit}) appears to be dating ${direct.name} (${direct.role}).
+Staff are claiming favoritism in assignments and schedule approvals.
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Witnesses: ${v.witnessCount} • Leadership pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- No formal complaint filed yet.\n- Multiple staff mention “preferred shifts.”\n- Risk: retaliation allegations if not handled carefully.`,
+    witness:`Witness:\n- A charge nurse says the relationship is “obvious.”\n- Another says it’s none of HR’s business unless favoritism is proven.`,
+    schedule:`Schedule/Timecard:\n- Schedule history shows ${direct.name} had fewer weekends recently (possible pattern).`,
+    audit:`Audit Logs:\n- Not primary unless access/favoritism involves system permissions.`,
+    legal:`Compliance/Legal:\n- Handle as conflict-of-interest risk.\n- Focus on disclosure, reporting line mitigation, and non-retaliation.`
+  };
+
+  const choices = [
+    { label:"Require disclosure + adjust reporting line (mitigation plan)",
+      text:`You require disclosure and implement a reporting change/mitigation plan with documentation and monitoring.`,
+      delta:{ complianceRisk:-8, reputation:+4, morale:+1, efficiency:-2, turnoverRisk:-2 }
+    },
+    { label:"Coach manager only; no structural change",
+      text:`You remind the manager about boundaries but keep structure unchanged. Rumors continue.`,
+      delta:{ complianceRisk:+4, reputation:-3, morale:-2, efficiency:+1, turnoverRisk:+3 }
+    },
+    { label:"Open formal investigation immediately",
+      text:`You open a formal investigation and preserve evidence. Clean but heavy on operations.`,
+      delta:{ complianceRisk:-6, reputation:+2, morale:-2, efficiency:-3, turnoverRisk:+1 }
+    },
+    { label:"Ignore until a “real complaint” exists",
+      text:`You wait. The unit reads it as protection of leadership.`,
+      delta:{ complianceRisk:+10, reputation:-7, morale:-4, efficiency:+1, turnoverRisk:+5 }
+    }
+  ];
+
+  return makeCase({
+    title:"Conflict of Interest: Manager Relationship Rumors",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ mgrId:mgr.id, empId:direct.id, reporterId:reporter.id, ...v },
+    info, choices,
+    requiredPolicies:["CONFLICT_OF_INTEREST","ANTI_RETALIATION","RESPECTFUL_CONDUCT"]
+  });
+},
+
+
+// 13) Inconsistent Discipline Across Units
+function tInconsistentDiscipline(){
+  const empA = genPerson();
+  const empB = genPerson({ preferRole: empA.role });
+  const mgrA = genPerson({ preferRole:"Unit Manager", preferUnit: empA.unit });
+  const mgrB = genPerson({ preferRole:"Unit Manager", preferUnit: empB.unit });
+  const v = genVars({ minSev:3, maxSev:4 });
+  const tags = ["Compliance","Corrective Action","Leadership","Consistency","Culture"];
+
+  const base =
+`Consistency challenge: similar conduct, different outcomes.
+
+Employee A: ${empA.name} (${empA.role}, ${empA.unit}) was written up for a policy violation.
+Employee B: ${empB.name} (${empB.role}, ${empB.unit}) had a similar incident, but Manager ${mgrB.name} handled it informally.
+
+Managers are arguing. Staff are noticing.
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Leadership pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Prior discipline status differs.\n- Documentation is stronger in Unit A than Unit B.\n- Risk: grievance/retaliation claims if inconsistent.`,
+    witness:`Witness:\n- Staff say, “depends which unit you’re in.”`,
+    schedule:`Schedule/Timecard:\n- Not central, but staffing stress may have influenced decisions.`,
+    audit:`Audit Logs:\n- Documentation gaps become compliance magnets.`,
+    legal:`Compliance/Legal:\n- Standardize discipline expectations; document rationale and align corrective action standards.`
+  };
+
+  const choices = [
+    { label:"Standardize: require documentation + align corrective action across units",
+      text:`You align standards, require memo-to-file for Unit B, and set consistency expectations with managers.`,
+      delta:{ complianceRisk:-7, reputation:+3, morale:+1, efficiency:-1, turnoverRisk:-2 }
+    },
+    { label:"Back Unit A only (strict) and ignore Unit B gap",
+      text:`You validate Unit A’s strict action but don’t address the inconsistency. Perceived unfairness grows.`,
+      delta:{ complianceRisk:+6, reputation:-4, morale:-3, efficiency:+1, turnoverRisk:+4 }
+    },
+    { label:"Reduce Unit A discipline to “match” Unit B",
+      text:`You soften Unit A retroactively. You look indecisive and weaken accountability.`,
+      delta:{ complianceRisk:+5, reputation:-5, morale:+0, efficiency:+1, turnoverRisk:+2 }
+    },
+    { label:"Launch mini-audit of corrective actions (last 60 days)",
+      text:`You audit patterns and create a unit training + documentation plan.`,
+      delta:{ complianceRisk:-8, reputation:+2, morale:-1, efficiency:-3, turnoverRisk:-1 }
+    }
+  ];
+
+  return makeCase({
+    title:"Consistency Problem: Discipline Applied Unevenly",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:empA.id, targetId:empB.id, managerId:mgrA.id, mgrId:mgrB.id, ...v },
+    info, choices,
+    requiredPolicies:["CORRECTIVE_ACTION","ANTI_RETALIATION"]
+  });
+},
+
+
+// 14) Accommodation Abuse Allegation
+function tAccommodationAbuse(){
+  const emp = genPerson();
+  const reporter = genPerson({ preferUnit: emp.unit });
+  const mgr = genPerson({ preferRole:"Unit Manager", preferUnit: emp.unit });
+  const v = genVars({ minSev:3, maxSev:5 });
+  const tags = ["Accommodation","Scheduling","Culture","Retaliation"];
+
+  const base =
+`Team complaint: “accommodation abuse.”
+
+${reporter.name} reports that ${emp.name}’s accommodation schedule is being used as a “free pass.”
+Others say workload is unfair and morale is dropping. Manager ${mgr.name} wants HR to “revoke it.”
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Unit stress: ${v.unitStress}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Accommodation exists, but terms may be outdated.\n- Team resentment is building.\n- Risk: retaliation and harassment toward ${emp.name}.`,
+    witness:`Witness:\n- A coworker says they heard “must be nice” comments.\n- Another confirms ${emp.name} still meets essential functions.`,
+    schedule:`Schedule/Timecard:\n- Actual coverage shows pinch points; may need operational adjustments.`,
+    audit:`Audit Logs:\n- Not primary unless timekeeping abuse is alleged.`,
+    legal:`Compliance/Legal:\n- Don’t revoke reflexively.\n- Re-engage interactive process; document reassessment; protect from retaliation.`
+  };
+
+  const choices = [
+    { label:"Reopen interactive process + clarify terms + protect from retaliation",
+      text:`You review the accommodation terms, adjust operational coverage if needed, and set a non-retaliation expectation.`,
+      delta:{ complianceRisk:-9, reputation:+3, morale:+1, efficiency:-2, turnoverRisk:-2 }
+    },
+    { label:"Revoke accommodation quickly to appease the team",
+      text:`You revoke quickly. Retaliation/ADA risk spikes and the employee may escalate.`,
+      delta:{ complianceRisk:+14, reputation:-7, morale:-2, efficiency:+1, turnoverRisk:+4 }
+    },
+    { label:"Do nothing; tell team to “deal with it”",
+      text:`You don’t address resentment. Culture degrades and quiet quitting grows.`,
+      delta:{ complianceRisk:+4, reputation:-3, morale:-5, efficiency:+0, turnoverRisk:+6 }
+    },
+    { label:"Coach manager + team norms reset + schedule pilot",
+      text:`You coach leadership language and run a schedule pilot to reduce resentment.`,
+      delta:{ complianceRisk:-6, reputation:+4, morale:+2, efficiency:-2, turnoverRisk:-2 }
+    }
+  ];
+
+  return makeCase({
+    title:"Accommodation Tension: Team Claims “Abuse”",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:emp.id, reporterId:reporter.id, managerId:mgr.id, ...v },
+    info, choices,
+    requiredPolicies:["ADA_INTERACTIVE_PROCESS","ANTI_RETALIATION"]
+  });
+},
+
+
+// 15) High Performer With Toxic Behavior
+function tHighPerformerToxic(){
+  const star = genPerson();
+  const reporter = genPerson({ preferUnit: star.unit });
+  const mgr = genPerson({ preferRole:"Unit Manager", preferUnit: star.unit });
+  const v = genVars({ minSev:3, maxSev:5 });
+  const tags = ["Culture","Performance","Retention","Conduct","Leadership"];
+
+  const base =
+`High performer problem: toxic behavior with protection.
+
+${reporter.name} reports that ${star.name} is a top performer but humiliates coworkers and undermines teamwork.
+Manager ${mgr.name} says, “We can’t lose them.”
+
+Severity: ${sevLabel(v.severity)} • Witnesses: ${v.witnessCount} • Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- ${star.name} has strong output but increasing complaints.\n- New hires are uncomfortable.\n- Manager avoids accountability.`,
+    witness:`Witness:\n- Someone says “they’re untouchable.”\n- Another confirms public criticism pattern.`,
+    schedule:`Schedule/Timecard:\n- Turnover chatter rising; coverage gaps are appearing.`,
+    audit:`Audit Logs:\n- Not system-based.`,
+    legal:`Compliance/Legal:\n- Document observable behaviors, progressive discipline as warranted, and prevent retaliation.`
+  };
+
+  const choices = [
+    { label:"Behavior coaching plan + checkpoints; manager accountability",
+      text:`You create a documented behavior plan with checkpoints and require the manager to enforce it.`,
+      delta:{ morale:+4, complianceRisk:-2, turnoverRisk:-6, efficiency:-1, reputation:+4 },
+      coach:1
+    },
+    { label:"Protect the star; relocate complainers",
+      text:`You move the reporter/others instead. Staff learn that speaking up gets punished.`,
+      delta:{ morale:-7, complianceRisk:+6, turnoverRisk:+10, efficiency:+1, reputation:-7 }
+    },
+    { label:"Immediate formal discipline for conduct",
+      text:`You take formal action. Clean but may cause pushback and short-term disruption.`,
+      delta:{ morale:+0, complianceRisk:-4, turnoverRisk:-3, efficiency:-2, reputation:+2 },
+      discipline:1
+    },
+    { label:"Ignore because performance is strong",
+      text:`Short-term output; long-term culture and retention collapse.`,
+      delta:{ morale:-8, complianceRisk:+5, turnoverRisk:+12, efficiency:+2, reputation:-8 }
+    }
+  ];
+
+  return makeCase({
+    title:"High Performer, Low Culture: Toxic Behavior Complaints",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ targetId:star.id, reporterId:reporter.id, managerId:mgr.id, ...v },
+    info, choices,
+    requiredPolicies:["RESPECTFUL_CONDUCT","CORRECTIVE_ACTION","ANTI_RETALIATION"]
+  });
+},
+
+
+// 16) Schedule Swap Dispute Turns Heated
+function tSwapDispute(){
+  const a = genPerson();
+  const b = genPerson({ preferUnit: a.unit });
+  const mgr = genPerson({ preferRole:"Unit Manager", preferUnit: a.unit });
+  const v = genVars({ minSev:2, maxSev:3 });
+  const tags = ["Scheduling","Culture","Interpersonal","Documentation"];
+
+  const base =
+`Schedule swap dispute.
+
+${a.name} and ${b.name} argue over a denied shift swap.
+${a.name} claims favoritism; ${b.name} says ${a.name} is “always gaming the schedule.”
+Manager ${mgr.name} wants HR to “shut this down.”
+
+Severity: ${sevLabel(v.severity)} • Witnesses: ${v.witnessCount} • Unit stress: ${v.unitStress}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Swap rules are unclear.\n- The unit is understaffed on that shift.\n- Tone is escalating in public.`,
+    witness:`Witness:\n- A coworker confirms public arguing.\n- Another says the manager is inconsistent.`,
+    schedule:`Schedule/Timecard:\n- Coverage shows that approving the swap would create a hole.`,
+    audit:`Audit Logs:\n- Not primary.`,
+    legal:`Compliance/Legal:\n- Keep it neutral and policy-based; document coaching if conflict escalates.`
+  };
+
+  const choices = [
+    { label:"Clarify swap criteria + neutral communication + memo-to-file",
+      text:`You clarify criteria, document the decision rationale, and coach both parties to stop public conflict.`,
+      delta:{ morale:+3, complianceRisk:-1, turnoverRisk:-2, efficiency:-1, reputation:+2 },
+      coach:1
+    },
+    { label:"Approve the swap to calm it down",
+      text:`Short-term peace, long-term fairness problems. Others will demand the same exception.`,
+      delta:{ morale:+1, complianceRisk:+4, turnoverRisk:+1, efficiency:+0, reputation:-2 }
+    },
+    { label:"Back the manager with no explanation",
+      text:`Perceived favoritism grows; conflict becomes a thread.`,
+      delta:{ morale:-4, complianceRisk:+3, turnoverRisk:+4, efficiency:+1, reputation:-4 }
+    },
+    { label:"Formal mediation with manager present",
+      text:`Slower but stabilizing; reduces future flare-ups.`,
+      delta:{ morale:+4, complianceRisk:-1, turnoverRisk:-3, efficiency:-2, reputation:+3 }
+    }
+  ];
+
+  return makeCase({
+    title:"Scheduling Conflict: Shift Swap Dispute",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:a.id, targetId:b.id, managerId:mgr.id, ...v },
+    info, choices,
+    requiredPolicies:["RESPECTFUL_CONDUCT"]
+  });
+},
+
+
+// 17) Incomplete I-9 / Credential Expiration
+function tCredentialIssue(){
+  const emp = genPerson();
+  const admin = genPerson({ preferUnit:"Admin" });
+  const v = genVars({ minSev:4, maxSev:5 });
+  const tags = ["Compliance","Audit","Operations","High Stakes"];
+
+  const base =
+`Compliance alert: credentialing or documentation gap.
+
+Admin contact ${admin.name} reports that ${emp.name} (${emp.role}, ${emp.unit}) has an expired credential
+(or missing I-9 documentation) flagged during an internal audit.
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- If clinical duties continue, risk is severe.\n- Ownership unclear (manager vs credentialing).\n- Scheduling impact likely.`,
+    witness:`Witness:\n- Manager claims they were never notified.\n- Employee says they “submitted it weeks ago.”`,
+    schedule:`Schedule/Timecard:\n- ${emp.name} is scheduled for high-need shifts soon.`,
+    audit:`Audit Logs:\n- Audit trail shows missing verification step; preserve for process fix.`,
+    legal:`Compliance/Legal:\n- Remove from duties until verified.\n- Document corrective action and prevention (alerts, checklist).`
+  };
+
+  const choices = [
+    { label:"Remove from duty until verified + urgent fix + process prevention plan",
+      text:`You immediately restrict duties, fix the documentation, and implement a prevention workflow.`,
+      delta:{ complianceRisk:-12, reputation:+3, morale:-2, efficiency:-3, turnoverRisk:+1 }
+    },
+    { label:"Let them work while paperwork catches up",
+      text:`Operations stay smooth today; compliance exposure spikes massively.`,
+      delta:{ complianceRisk:+16, reputation:-8, morale:+0, efficiency:+2, turnoverRisk:+2 }
+    },
+    { label:"Blame manager publicly; escalate aggressively",
+      text:`You may be right, but you lose leadership trust and create political backlash.`,
+      delta:{ complianceRisk:-4, reputation:-6, morale:-2, efficiency:-1, turnoverRisk:+2 }
+    },
+    { label:"Quietly fix without documentation",
+      text:`Fast, but if auditors ask later, you look like you hid it.`,
+      delta:{ complianceRisk:+8, reputation:-5, morale:+1, efficiency:+1, turnoverRisk:+1 }
+    }
+  ];
+
+  return makeCase({
+    title:"Compliance Flag: Credential / I-9 Documentation Gap",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:emp.id, adminId:admin.id, ...v },
+    info, choices,
+    requiredPolicies:["CREDENTIALING_COMPLIANCE","CORRECTIVE_ACTION"]
+  });
+},
+
+
+// 18) Union Talk / Collective Action Rumors
+function tUnionTalk(){
+  const emp = genPerson();
+  const mgr = genPerson({ preferRole:"Unit Manager", preferUnit: emp.unit });
+  const v = genVars({ minSev:4, maxSev:4 });
+  const tags = ["Labor Relations","Retaliation","Leadership","High Stakes"];
+
+  const base =
+`Labor relations sensitivity: organizing rumors.
+
+Manager ${mgr.name} reports “union talk” in ${emp.unit}. They want to:
+- identify who is organizing,
+- “stop the spread,”
+- and restrict discussions at work.
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Staff have been discussing pay, staffing, and safety.\n- Manager is emotional and wants names.\n- Risk: unlawful retaliation/interference.`,
+    witness:`Witness:\n- A staff member says management is “watching us.”`,
+    schedule:`Schedule/Timecard:\n- Understaffing and overtime are driving discontent.`,
+    audit:`Audit Logs:\n- Do NOT “audit” individuals for organizing.\n- Preserve neutral documentation only.`,
+    legal:`Compliance/Legal:\n- Coach manager on do/don’t.\n- Keep guidance neutral.\n- Escalate to legal/employee relations.`
+  };
+
+  const choices = [
+    { label:"Coach manager on protected activity + neutral comms + escalate to legal/ER",
+      text:`You give do/don’t guidance, stop surveillance behavior, and escalate for a compliant approach.`,
+      delta:{ complianceRisk:-10, reputation:+3, morale:+1, efficiency:-2, turnoverRisk:-1 }
+    },
+    { label:"Help manager identify “organizers”",
+      text:`This is a compliance grenade. Retaliation exposure skyrockets.`,
+      delta:{ complianceRisk:+18, reputation:-10, morale:-4, efficiency:+1, turnoverRisk:+6 }
+    },
+    { label:"Ban all workplace discussions about pay/conditions",
+      text:`Overreach. Staff trust collapses and risk spikes.`,
+      delta:{ complianceRisk:+14, reputation:-7, morale:-5, efficiency:+0, turnoverRisk:+7 }
+    },
+    { label:"Ignore it; tell manager to handle it alone",
+      text:`Manager likely does something dumb. HR looks absent.`,
+      delta:{ complianceRisk:+10, reputation:-6, morale:-2, efficiency:+1, turnoverRisk:+3 }
+    }
+  ];
+
+  return makeCase({
+    title:"Labor Relations: Organizing / Union Talk Reported",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:emp.id, managerId:mgr.id, ...v },
+    info, choices,
+    requiredPolicies:["LABOR_RELATIONS","ANTI_RETALIATION"]
+  });
+},
+
+
+// 19) Social Media Post About the Hospital
+function tSocialMedia(){
+  const emp = genPerson();
+  const reporter = genPerson({ preferUnit: emp.unit });
+  const v = genVars({ minSev:2, maxSev:4 });
+  const tags = ["Reputation","Conduct","Confidentiality","Policy"];
+
+  const base =
+`Social media issue.
+
+${reporter.name} reports that ${emp.name} posted a negative message online about the hospital.
+It doesn’t name patients, but it implies unsafe staffing and “clown management.”
+Staff are sharing it internally.
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Post may be protected speech depending on content.\n- If it includes confidential patient info, risk increases sharply.\n- Leadership wants it removed.`,
+    witness:`Witness:\n- Coworkers confirm it’s spreading.\n- Someone says it includes a photo from a work area (possible policy issue).`,
+    schedule:`Schedule/Timecard:\n- Staffing shortages are real; this may reflect genuine concerns.`,
+    audit:`Audit Logs:\n- Preserve evidence neutrally (screenshot) and verify authorship.`,
+    legal:`Compliance/Legal:\n- Separate reputation concerns from confidentiality violations.\n- Avoid retaliation; focus on policy boundaries and minimum necessary.`
+  };
+
+  const choices = [
+    { label:"Preserve evidence + coaching on policy boundaries + address underlying staffing concern",
+      text:`You document, coach boundaries, and address operational driver to reduce recurrence.`,
+      delta:{ complianceRisk:-3, reputation:+3, morale:+1, efficiency:-2, turnoverRisk:-1 },
+      coach:1
+    },
+    { label:"Demand immediate deletion + threaten discipline",
+      text:`Heavy-handed; retaliation/perception risk spikes and morale drops.`,
+      delta:{ complianceRisk:+8, reputation:-5, morale:-4, efficiency:+0, turnoverRisk:+4 }
+    },
+    { label:"Discipline immediately for reputation harm",
+      text:`If not a clear policy violation, this can backfire. If it included confidential info, it’s defensible.`,
+      delta:{ complianceRisk:+4, reputation:-2, morale:-2, efficiency:-1, turnoverRisk:+2 },
+      discipline:1
+    },
+    { label:"Ignore it as “off-duty”",
+      text:`Message spreads. Leadership trust drops and reputation damage continues.`,
+      delta:{ complianceRisk:+5, reputation:-6, morale:-1, efficiency:+1, turnoverRisk:+2 }
+    }
+  ];
+
+  return makeCase({
+    title:"Reputation Risk: Social Media Post Spreads",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:emp.id, reporterId:reporter.id, ...v },
+    info, choices,
+    requiredPolicies:["SOCIAL_MEDIA","ANTI_RETALIATION","HIPAA_MIN_NECESSARY"]
+  });
+},
+
+
+// 20) Refusal to Float Units
+function tRefusalToFloat(){
+  const emp = genPerson();
+  const mgr = genPerson({ preferRole:"Unit Manager", preferUnit: emp.unit });
+  const v = genVars({ minSev:3, maxSev:4 });
+  const tags = ["Operations","Scheduling","Accommodation","Retention"];
+
+  const base =
+`Operational refusal: floating dispute.
+
+${emp.name} refuses to float to another unit when asked, citing anxiety/safety concerns.
+Manager ${mgr.name} wants immediate discipline because staffing is critical.
+
+Severity: ${sevLabel(v.severity)} • Unit stress: ${v.unitStress}/5 • Pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Floating is common but training varies.\n- Employee claims they were not properly oriented.\n- Risk: burnout/turnover if handled harshly.`,
+    witness:`Witness:\n- A charge nurse confirms float training is inconsistent.\n- Another says the employee refused rudely in public.`,
+    schedule:`Schedule/Timecard:\n- Staffing shortfall is real.\n- Overtime is increasing.`,
+    audit:`Audit Logs:\n- Not primary.`,
+    legal:`Compliance/Legal:\n- Determine if accommodation process is needed.\n- Clarify essential functions and training expectations; document.`
+  };
+
+  const choices = [
+    { label:"Clarify float expectations + offer training/bridge plan + document",
+      text:`You clarify expectations and create a training bridge plan so refusal doesn’t repeat.`,
+      delta:{ morale:+2, complianceRisk:-2, turnoverRisk:-4, efficiency:-1, reputation:+3 },
+      coach:1
+    },
+    { label:"Immediate discipline for refusal",
+      text:`Operations feels supported; retention risk increases and potential accommodation issues escalate.`,
+      delta:{ morale:-3, complianceRisk:+3, turnoverRisk:+6, efficiency:+1, reputation:-2 },
+      discipline:1
+    },
+    { label:"Treat as accommodation request and begin interactive process",
+      text:`You treat it as possible accommodation and document options and feasibility.`,
+      delta:{ morale:+1, complianceRisk:-6, turnoverRisk:-2, efficiency:-2, reputation:+3 }
+    },
+    { label:"Ignore and let manager handle ad hoc",
+      text:`Inconsistency continues; future conflicts escalate.`,
+      delta:{ morale:-2, complianceRisk:+5, turnoverRisk:+3, efficiency:+0, reputation:-4 }
+    }
+  ];
+
+  return makeCase({
+    title:"Staffing Crunch: Refusal to Float Units",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ empId:emp.id, managerId:mgr.id, ...v },
+    info, choices,
+    requiredPolicies:["ADA_INTERACTIVE_PROCESS","CORRECTIVE_ACTION"]
+  });
+},
+
+
+// 21) Anonymous Complaint About HR Itself
+function tHotlineAgainstHR(){
+  const v = genVars({ minSev:4, maxSev:5 });
+  const tags = ["Ethics Hotline","Governance","High Stakes","Reputation"];
+
+  const base =
+`Anonymous hotline complaint: HR mishandling alleged.
+
+A report claims HR “protected leadership,” closed a case without documentation, and retaliated against a reporter
+via schedule changes. The complaint specifically names “HR” as the problem.
+
+Leadership wants this handled discreetly.
+
+Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Pressure: ${v.leadershipPressure}/5.`;
+
+  const info = {
+    moreInfo:`More Info:\n- Details are vague but emotionally charged.\n- If your documentation is weak, exposure is high.\n- This can damage leadership trust in HR.`,
+    witness:`Witness:\n- People are rumor-sharing; few will speak on record.`,
+    schedule:`Schedule/Timecard:\n- If schedule changes occurred after a report, it looks like retaliation.`,
+    audit:`Audit Logs:\n- Preserve case records, access logs, and decision trail.\n- Tight need-to-know is critical.`,
+    legal:`Compliance/Legal:\n- Escalate to compliance/legal and ensure independent review.\n- Do not investigate “yourself” informally.`
+  };
+
+  const choices = [
+    { label:"Escalate to compliance/legal + independent review + preserve all records",
+      text:`You route the matter to an independent review with evidence preservation and clear documentation.`,
+      delta:{ complianceRisk:-10, reputation:+2, morale:-1, efficiency:-3, turnoverRisk:-1 }
+    },
+    { label:"Handle internally and quietly with minimal documentation",
+      text:`Looks like a cover-up. If it escalates, it’s brutal.`,
+      delta:{ complianceRisk:+16, reputation:-10, morale:-2, efficiency:+1, turnoverRisk:+2 }
+    },
+    { label:"Deny aggressively and blame staff",
+      text:`You lose credibility. Even if false, your response makes it feel true.`,
+      delta:{ complianceRisk:+12, reputation:-12, morale:-3, efficiency:+1, turnoverRisk:+3 }
+    },
+    { label:"Open a formal scoped investigation with full documentation",
+      text:`You define scope, preserve evidence, and document disposition cleanly.`,
+      delta:{ complianceRisk:-8, reputation:+3, morale:-1, efficiency:-3, turnoverRisk:-1 }
+    }
+  ];
+
+  return makeCase({
+    title:"Hotline Targets HR: Alleged Mishandling & Retaliation",
+    severity:v.severity,
+    tags,
+    baseText: base,
+    variables:{ ...v },
+    info, choices,
+    requiredPolicies:["HOTLINE_INTAKE","ANTI_RETALIATION"]
+  });
+},
 
     function tTermination(){
   ensureRoster();
@@ -2163,6 +2776,17 @@ Severity: ${sevLabel(v.severity)} • Evidence: ${v.evidenceStrength}/5 • Prio
       { v: templates[8], w: 12 + wTurn*8 },
       { v: templates[9], w: 8 + wHigh*14 },
       { v: templates[10], w: 6 + wHigh*8 },
+      { v: templates[11], w: 10 }, // relationship COI
+      { v: templates[12], w: 10 + wHigh*6 }, // inconsistent discipline
+      { v: templates[13], w: 10 + wHigh*6 }, // accommodation abuse tension
+      { v: templates[14], w: 10 + wTurn*8 }, // high performer toxic
+      { v: templates[15], w: 10 }, // swap dispute
+      { v: templates[16], w: 8 + wHigh*12 }, // credential/I-9 issue
+      { v: templates[17], w: 6 + wHigh*14 }, // labor relations union talk
+      { v: templates[18], w: 10 }, // social media
+      { v: templates[19], w: 10 + wTurn*8 }, // refusal to float
+      { v: templates[20], w: 6 + wHigh*10 }, // hotline vs HR
+
     ]);
 
     s.activeCase = pickTemplate();
